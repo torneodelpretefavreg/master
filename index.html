@@ -467,10 +467,6 @@ function validatePlayer(p) {
   const missing = [];
   if (!p.name || !p.name.trim()) missing.push("Nome");
   if (!p.birthDate) missing.push("Data nascita");
-  if (!p.birthPlace || !p.birthPlace.trim()) missing.push("Luogo nascita");
-  if (!p.address || !p.address.trim()) missing.push("Indirizzo");
-  if (!p.idCard || !p.idCard.trim()) missing.push("Carta identità");
-  if (!p.fiscalCode || !p.fiscalCode.trim()) missing.push("Codice fiscale");
   return missing;
 }
 
@@ -1051,19 +1047,19 @@ function PlayerRow({ player, index, onChange, onSetCaptain, onRemove }) {
           <input type="date" value={player.birthDate || ""} onChange={e=>onChange("birthDate", e.target.value)} />
         </div>
         <div>
-          <label>Luogo di nascita <span className="req">*</span></label>
+          <label>Luogo di nascita</label>
           <input value={player.birthPlace || ""} onChange={e=>onChange("birthPlace", e.target.value)} placeholder="Carpi (MO)" />
         </div>
         <div>
-          <label>Indirizzo <span className="req">*</span></label>
+          <label>Indirizzo</label>
           <input value={player.address || ""} onChange={e=>onChange("address", e.target.value)} placeholder="Via Roma 1, Fabbrico 42042" />
         </div>
         <div>
-          <label>N. carta d'identità <span className="req">*</span></label>
+          <label>N. carta d'identità</label>
           <input value={player.idCard || ""} onChange={e=>onChange("idCard", e.target.value.toUpperCase())} placeholder="CA12345XY" />
         </div>
         <div>
-          <label>Codice fiscale <span className="req">*</span></label>
+          <label>Codice fiscale</label>
           <input value={player.fiscalCode || ""} onChange={e=>onChange("fiscalCode", e.target.value.toUpperCase())} placeholder="RSSMRA90A01H501Z" />
         </div>
       </div>
