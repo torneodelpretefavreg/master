@@ -1814,6 +1814,7 @@ const emptyInventoryItem = () => ({
   name: "",
   category: "bere", // "bere" | "mangiare"
   unit: "pz",
+  supplier: "",
   initial: 0,
   remaining: 0,
 });
@@ -1971,6 +1972,7 @@ function InventoryRow({ item, onUpdate, onEdit, onDelete }) {
       <div className="inv-item-info">
         <div className="name">{item.name}</div>
         <div className="meta">
+          {item.supplier && <span style={{color:"var(--gold-deep)", fontWeight:600}}>{item.supplier.toUpperCase()} · </span>}
           INIZ. {initial} {item.unit}
           {initial > 0 && " · " + Math.round(pct) + "% RIMASTO"}
         </div>
@@ -2009,6 +2011,7 @@ function InventoryEditor({ item, onSave, onCancel, isNew }) {
   const [category, setCategory] = useState(item.category || "bere");
   const [unit, setUnit] = useState(item.unit || "pz");
   const [customUnit, setCustomUnit] = useState(UNIT_OPTIONS.includes(item.unit) ? "" : (item.unit || ""));
+  const [supplier, setSupplier] = useState(item.supplier || "");
   const [initial, setInitial] = useState(item.initial != null ? String(item.initial) : "0");
   const [remaining, setRemaining] = useState(item.remaining != null ? String(item.remaining) : "0");
 
@@ -2020,11 +2023,11 @@ function InventoryEditor({ item, onSave, onCancel, isNew }) {
     onSave(Object.assign({}, item, {
       name: name.trim(),
       category, unit: finalUnit,
+      supplier: supplier.trim(),
       initial: ini, remaining: rem,
     }));
   };
 
-  // Quando si crea, allinea le rimanenze alla quantità iniziale automaticamente
   const initialChanged = (val) => {
     setInitial(val);
     if (isNew) setRemaining(val);
@@ -2051,6 +2054,12 @@ function InventoryEditor({ item, onSave, onCancel, isNew }) {
             </select>
           </div>
           <div>
+            <label>Fornitore</label>
+            <input value={supplier} onChange={e=>setSupplier(e.target.value)} placeholder="Es. Ghidoni, Conad..." />
+          </div>
+        </div>
+        <div className="form-row" style={{gridTemplateColumns:"1fr"}}>
+          <div>
             <label>Unità</label>
             <select value={UNIT_OPTIONS.includes(unit) ? unit : "__custom__"} onChange={e=>setUnit(e.target.value)}>
               {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
@@ -2062,7 +2071,7 @@ function InventoryEditor({ item, onSave, onCancel, isNew }) {
           <div className="form-row">
             <div>
               <label>Unità personalizzata</label>
-              <input value={customUnit} onChange={e=>setCustomUnit(e.target.value)} placeholder="Es. busta, fusto, kg, lt..." />
+              <input value={customUnit} onChange={e=>setCustomUnit(e.target.value)} placeholder="Es. busta, fusto..." />
             </div>
           </div>
         )}
@@ -2085,40 +2094,44 @@ function InventoryEditor({ item, onSave, onCancel, isNew }) {
   );
 }
 
-// Parser Excel inventario: cerca colonne con header riconoscibili
+// Parser Excel inventario: cerca foglio "LISTA ORDINI" (formato lista materiale TdP)
+// con header: N.ORDINAZIONE | TIPOLOGIA | FORNITORE | IMPORTO UNITARIO | QUANTITÀ | COSTO FINALE
+// Se non trova il foglio specifico, fallback su un parser generico
 function parseInventoryExcel(workbook) {
-  // Provo a prendere il primo foglio
-  const sheetName = workbook.SheetNames[0];
+  // 1) Cerco il foglio "LISTA ORDINI" (case-insensitive, accetta anche "Lista Ordini", ecc.)
+  let sheetName = workbook.SheetNames.find(n => /lista.*ordin/i.test(n));
+  if (!sheetName) sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
   if (rows.length === 0) return [];
 
-  // Cerco la riga header: contiene parole come "prodotto", "nome", "quantit", "unit"
+  // 2) Cerco la riga header
   let headerRowIdx = -1;
-  let cols = { name: -1, category: -1, qty: -1, unit: -1 };
+  let cols = { name: -1, supplier: -1, qty: -1, unit: -1, category: -1 };
   for (let i = 0; i < Math.min(20, rows.length); i++) {
     const row = rows[i] || [];
-    const matches = { name: -1, category: -1, qty: -1, unit: -1 };
+    const m = { name: -1, supplier: -1, qty: -1, unit: -1, category: -1 };
     row.forEach((cell, idx) => {
       if (cell == null) return;
       const s = String(cell).toLowerCase().trim();
-      if (matches.name === -1 && /^(prodotto|nome|articolo|descrizione|item)/.test(s)) matches.name = idx;
-      else if (matches.category === -1 && /^(categoria|tipo|reparto|gruppo)/.test(s)) matches.category = idx;
-      else if (matches.qty === -1 && /(quantit|q\.t|qta|qty|num|pezzi|n\.|n°)/.test(s)) matches.qty = idx;
-      else if (matches.unit === -1 && /^(unit|u\.m|um|misura)/.test(s)) matches.unit = idx;
+      // TIPOLOGIA = è il NOME dell'articolo nella lista ordini TdP
+      if (m.name === -1 && /^(tipologia|prodotto|nome|articolo|descrizione|item)/.test(s)) m.name = idx;
+      else if (m.supplier === -1 && /^(fornitore|supplier|negozio)/.test(s)) m.supplier = idx;
+      else if (m.category === -1 && /^(categoria|tipo|reparto|gruppo)$/.test(s)) m.category = idx;
+      else if (m.qty === -1 && /(quantit|q\.t|qta|qty|pezzi|^n\.?$|n°)/.test(s)) m.qty = idx;
+      else if (m.unit === -1 && /^(unit|u\.m|um|misura)/.test(s)) m.unit = idx;
     });
-    if (matches.name !== -1 && matches.qty !== -1) {
+    if (m.name !== -1) {
       headerRowIdx = i;
-      cols = matches;
+      cols = m;
       break;
     }
   }
 
-  // Fallback: nessuna header trovata, prendo le prime colonne con dati
+  // Fallback: nessuna header trovata, prendo le prime colonne
   if (headerRowIdx === -1) {
-    // Provo: col0 = nome, col1 = qty
-    headerRowIdx = -1; // niente header, parto da riga 0
-    cols = { name: 0, category: -1, qty: 1, unit: 2 };
+    headerRowIdx = -1;
+    cols = { name: 0, supplier: -1, qty: 1, unit: 2, category: -1 };
   }
 
   const items = [];
@@ -2129,42 +2142,63 @@ function parseInventoryExcel(workbook) {
     if (name == null || name === "") continue;
     const sName = String(name).trim();
     if (!sName) continue;
-    // Salto righe che sembrano sub-header / totali
-    if (/^(totale|total|sub-?total|categoria|reparto)/i.test(sName)) continue;
+    // Salto header parziali / totali
+    if (/^(totale|total|sub-?total|categoria|reparto|tipologia|n\.ordinazione)$/i.test(sName)) continue;
 
+    // Quantità (può essere vuota — è il caso del file TdP)
     let qty = cols.qty >= 0 ? row[cols.qty] : null;
     qty = parseFloat(qty);
     if (isNaN(qty)) qty = 0;
 
-    let unit = cols.unit >= 0 && row[cols.unit] ? String(row[cols.unit]).trim().toLowerCase() : "pz";
+    // Unità (può essere vuota)
+    let unit = cols.unit >= 0 && row[cols.unit] ? String(row[cols.unit]).trim().toLowerCase() : "";
     // Normalizzo unità comuni
-    if (/^(kg|chilogrammi|chilogrammo)$/.test(unit)) unit = "kg";
-    else if (/^(lt|litri|litro|l)$/.test(unit)) unit = "lt";
-    else if (/^(ml|millilitri)$/.test(unit)) unit = "ml";
-    else if (/^(g|grammi|grammo|gr)$/.test(unit)) unit = "g";
-    else if (/^(pz|pezzi|pezzo|pcs|n)$/.test(unit)) unit = "pz";
-    else if (/^(cas|cassa|casse)$/.test(unit)) unit = "cassa";
-    else if (/^(conf|confezione|confezioni)$/.test(unit)) unit = "conf";
-    else if (/^(scat|scatola|scatole)$/.test(unit)) unit = "scat";
+    if (unit) {
+      if (/^(kg|chilogrammi|chilogrammo)$/.test(unit)) unit = "kg";
+      else if (/^(lt|litri|litro|l)$/.test(unit)) unit = "lt";
+      else if (/^(ml|millilitri)$/.test(unit)) unit = "ml";
+      else if (/^(g|grammi|grammo|gr)$/.test(unit)) unit = "g";
+      else if (/^(pz|pezzi|pezzo|pcs|n)$/.test(unit)) unit = "pz";
+      else if (/^(cas|cassa|casse)$/.test(unit)) unit = "cassa";
+      else if (/^(conf|confezione|confezioni)$/.test(unit)) unit = "conf";
+      else if (/^(scat|scatola|scatole)$/.test(unit)) unit = "scat";
+    } else {
+      unit = "pz"; // default
+    }
 
-    // Categoria: se c'è una colonna, la uso; sennò provo a indovinare dal nome
+    // Fornitore
+    const supplier = cols.supplier >= 0 && row[cols.supplier] ? String(row[cols.supplier]).trim() : "";
+
+    // Categoria: prima provo la colonna esplicita, poi il fornitore, poi euristica sul nome
     let category = "mangiare";
     if (cols.category >= 0 && row[cols.category]) {
       const c = String(row[cols.category]).toLowerCase();
       if (/(ber|bibit|bevand|drink|alcol|birr|vino|acqua|cola|succh)/.test(c)) category = "bere";
       else if (/(mangi|cib|food|salume|formag|pane|carne|pasta)/.test(c)) category = "mangiare";
     } else {
-      // Heuristic dal nome
+      // Heuristic dal nome (esteso per coprire i prodotti tipici del file TdP)
       const n = sName.toLowerCase();
-      if (/(birra|vino|acqua|coca|fanta|sprite|spritz|aperol|caff|caffe|caffè|the|tè|succo|bevand|prosecco|rosso|bianco|moretti|peroni|heineken|nastro|ichnusa|red bull|amaro)/.test(n)) {
-        category = "bere";
-      }
+      const bereKeywords = [
+        "birra","vino","acqua","coca","cola","fanta","sprite","spritz","aperol","caff","caffe","caffè",
+        "the","tè","succo","bevand","prosecco","rosso","bianco","moretti","peroni","heineken","nastro",
+        "ichnusa","red bull","amaro","gin","vodka","rum","tequila","jager","jäger","montenegro",
+        "campari","triple sec","vermut","tonica","lemonsoda","sciroppo","ghiaccio","cocktail",
+        "bicchier","cannucc","pepsi","soda","bif"
+      ];
+      const mangiareKeywords = [
+        "salsicc","wurstel","cotolett","nugget","pane","piad","pizza","panin","hamburg","carne",
+        "patat","verdur","salsa","ketchup","maion","senape","formag","prosciutto","salume",
+        "pasta","riso","sale","zucchero","limone","menta","rosmarino"
+      ];
+      if (bereKeywords.some(k => n.includes(k))) category = "bere";
+      else if (mangiareKeywords.some(k => n.includes(k))) category = "mangiare";
+      else category = "mangiare"; // default
     }
 
     items.push({
       id: uid(),
       name: sName,
-      category, unit,
+      category, unit, supplier,
       initial: qty,
       remaining: qty,
     });
@@ -2231,7 +2265,7 @@ function InventoryImportModal({ onImport, onCancel, existingCount }) {
               </button>
             </div>
             <div style={{fontSize:12, color:"var(--ink-soft)", fontStyle:"italic"}}>
-              <strong>Riconoscimento automatico:</strong> l'app cerca colonne come "prodotto/nome", "quantità", "unità" e (se presente) "categoria". La categoria bere/mangiare viene anche dedotta dal nome del prodotto.
+              <strong>Cosa cerca:</strong> il foglio "LISTA ORDINI" con colonne <em>TIPOLOGIA, FORNITORE, QUANTITÀ</em>. Funziona anche con altri layout (riconosce automaticamente nome, fornitore, quantità, unità). La categoria <em>bere/mangiare</em> viene dedotta dal nome dell'articolo (puoi correggerla nella preview).
             </div>
           </>
         )}
@@ -2253,9 +2287,12 @@ function InventoryImportModal({ onImport, onCancel, existingCount }) {
             <div className="import-preview">
               {parsed.map((it, idx) => (
                 <div key={it.id} className="import-team-block" style={{borderLeftColor: it.category==="bere" ? "#2a4a8c" : "#a04420"}}>
-                  <div style={{display:"grid", gridTemplateColumns:"2fr 1fr 1fr auto", gap:8, alignItems:"center"}}>
-                    <h4 style={{fontFamily:"'Fraunces', serif", fontSize:14, fontWeight:600, letterSpacing:0}}>{it.name}</h4>
-                    <span className="count">{it.initial} {it.unit}</span>
+                  <div style={{display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr auto", gap:8, alignItems:"center"}}>
+                    <div>
+                      <h4 style={{fontFamily:"'Fraunces', serif", fontSize:14, fontWeight:600, letterSpacing:0}}>{it.name}</h4>
+                      {it.supplier && <div style={{fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"var(--gold-deep)", marginTop:2, letterSpacing:"0.06em"}}>{it.supplier.toUpperCase()}</div>}
+                    </div>
+                    <span className="count">{it.initial || "?"} {it.unit}</span>
                     <div style={{display:"flex", gap:4}}>
                       <button
                         className={"btn btn-sm " + (it.category === "bere" ? "btn-primary" : "")}
