@@ -541,7 +541,9 @@ function computeStandings(teams, matches) {
   );
 }
 
-// Excel parser - se non si specifica sheetName, cerca prima "GIOCATORI 2026", poi "TUTTI I GIOCATORI"
+// Excel parser - identifica le squadre tramite il COLORE arancione (FFE699) della cella B
+// che è l'unico discriminante affidabile nel foglio "GIOCATORI 2026" del torneo.
+// Se non si specifica sheetName, cerca prima "GIOCATORI <anno>", poi "TUTTI I GIOCATORI".
 function parseTuttiIGiocatori(workbook, sheetName) {
   if (!sheetName) {
     sheetName = workbook.SheetNames.find(n => /giocatori.*\d{4}/i.test(n));
@@ -551,27 +553,69 @@ function parseTuttiIGiocatori(workbook, sheetName) {
 
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) return [];
+
+  // Estraggo le righe come array di array (header:1, raw:true)
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+  // Determino la riga Excel di partenza (sheet potrebbe avere righe vuote in cima)
+  // sheet['!ref'] è tipo "A2:G226" → la prima riga popolata è 2
+  let startRow = 1;
+  if (sheet["!ref"]) {
+    const m = sheet["!ref"].match(/^[A-Z]+(\d+)/);
+    if (m) startRow = parseInt(m[1], 10);
+  }
+
+  // Funzione helper: ottiene il colore di sfondo della cella B (colonna 2) per la riga r (1-indexed Excel)
+  // SheetJS espone gli stili in sheet[cellRef].s se la lettura è stata fatta con cellStyles: true
+  const isTeamRowColor = (rowIdx1based) => {
+    const cellRef = "B" + rowIdx1based;
+    const cell = sheet[cellRef];
+    if (!cell || !cell.s) return false;
+    const fg = cell.s.fgColor;
+    if (!fg || !fg.rgb) return false;
+    // Normalizzo: rimuovo prefisso alpha 'FF' o '00' se a 8 caratteri
+    let rgb = String(fg.rgb).toUpperCase();
+    if (rgb.length === 8) rgb = rgb.slice(2); // FFFFE699 -> FFE699
+    // Colore arancione chiaro standard del file TdP: FFE699
+    if (rgb === "FFE699") return true;
+    if (rgb === "FFFF00") return false; // giallo evidenziatore — NON è una squadra
+    // Range arancione/pesca chiaro: FFE6xx, FFD9xx, FFCCxx
+    if (/^FF[ED][069]/.test(rgb)) return true;
+    return false;
+  };
+
+  // Verifico se il foglio ha almeno una cella con colore arancione (cioè se gli stili sono leggibili)
+  let hasColorInfo = false;
+  for (let i = 0; i < rows.length; i++) {
+    if (isTeamRowColor(startRow + i)) { hasColorInfo = true; break; }
+  }
+
   const teams = [];
   let current = null;
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i] || [];
-    // Colonne: A=0 (flag), B=1 (nome/giocatore), C=2 (data nascita), D=3 (luogo), E=4 (indirizzo), F=5 (CI), G=6 (CF)
-    const cA = row[0];
+    const rowNum = startRow + i; // riga Excel reale (1-indexed)
     const cB = row[1], cC = row[2], cD = row[3], cE = row[4], cF = row[5], cG = row[6];
 
     if (cB == null || cB === "") continue;
     const sB = String(cB).trim();
     if (!sB) continue;
     if (/^GIOCATORE$/i.test(sB)) continue;
-    if (/^\d+$/.test(sB)) continue; // solo numero (id squadra vecchio formato)
+    if (/^\d+$/.test(sB)) continue;
 
     const hasBirth = cC != null && cC !== "" && parseDateToISO(cC) !== "";
 
-    // Riconosci nome squadra: testo in maiuscolo, senza data di nascita.
-    // Nel nuovo formato cA===true è l'indicatore esplicito; nel vecchio non c'è nulla.
-    const isUppercase = sB === sB.toUpperCase() && sB.length > 1;
-    const isTeamRow = !hasBirth && isUppercase && (cA === true || cA == null || cA === "");
+    // === Riconoscimento riga-squadra ===
+    let isTeamRow = false;
+    if (hasColorInfo) {
+      // Modalità COLORE: l'unico segnale è il colore arancione della cella B
+      isTeamRow = isTeamRowColor(rowNum) && !hasBirth;
+    } else {
+      // Fallback (file senza stili): MAIUSCOLO e nessuna data di nascita
+      const isUppercase = sB === sB.toUpperCase() && sB.length > 1;
+      isTeamRow = !hasBirth && isUppercase;
+    }
 
     if (isTeamRow) {
       current = {
@@ -581,6 +625,7 @@ function parseTuttiIGiocatori(workbook, sheetName) {
       teams.push(current);
       continue;
     }
+
     if (!current) continue;
     if (hasBirth) {
       current.players.push({
@@ -594,7 +639,8 @@ function parseTuttiIGiocatori(workbook, sheetName) {
       });
     }
   }
-  // Filtra squadre senza giocatori (gli "slot vuoti" del nuovo formato)
+
+  // Filtra squadre senza giocatori
   return teams.filter(t => t.players.length > 0);
 }
 
@@ -1104,7 +1150,7 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
     reader.onload = (ev) => {
       try {
         const data = new Uint8Array(ev.target.result);
-        const wb = XLSX.read(data, { type: "array", cellDates: true });
+        const wb = XLSX.read(data, { type: "array", cellDates: true, cellStyles: true });
         // Default suggerito: GIOCATORI <anno>, poi TUTTI I GIOCATORI, poi primo
         let suggested = wb.SheetNames.find(n => /giocatori.*\d{4}/i.test(n));
         if (!suggested) suggested = wb.SheetNames.find(n => /tutti.*giocator/i.test(n));
