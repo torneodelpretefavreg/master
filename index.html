@@ -602,7 +602,8 @@ function parseTuttiIGiocatori(workbook, sheetName) {
     const sB = String(cB).trim();
     if (!sB) continue;
     if (/^GIOCATORE$/i.test(sB)) continue;
-    if (/^\d+$/.test(sB)) continue;
+    // NOTA: rimosso filtro "solo numeri" perché nomi-squadra come "2001" sono validi
+    // (es. squadra "anno di nascita"). Il colore arancione è il discriminante.
 
     const hasBirth = cC != null && cC !== "" && parseDateToISO(cC) !== "";
 
@@ -1131,9 +1132,12 @@ function PlayerRow({ player, index, onChange, onSetCaptain, onRemove }) {
 }
 
 function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
+  // Step: 1=upload, 2=conferma squadre, 3=preview giocatori
+  const [step, setStep] = useState(1);
   const [workbook, setWorkbook] = useState(null);
   const [sheetName, setSheetName] = useState("");
-  const [parsed, setParsed] = useState(null);
+  const [parsed, setParsed] = useState(null); // squadre estratte dal parser
+  const [confirmed, setConfirmed] = useState({}); // { teamId: { included: bool, name: string } }
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -1146,24 +1150,18 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
     setParsed(null);
     setWorkbook(null);
     setSheetName("");
+    setConfirmed({});
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const data = new Uint8Array(ev.target.result);
         const wb = XLSX.read(data, { type: "array", cellDates: true, cellStyles: true });
-        // Default suggerito: GIOCATORI <anno>, poi TUTTI I GIOCATORI, poi primo
         let suggested = wb.SheetNames.find(n => /giocatori.*\d{4}/i.test(n));
         if (!suggested) suggested = wb.SheetNames.find(n => /tutti.*giocator/i.test(n));
         if (!suggested) suggested = wb.SheetNames[0];
         setWorkbook(wb);
         setSheetName(suggested);
-        // Esegui parse iniziale sul foglio suggerito
-        const teams = parseTuttiIGiocatori(wb, suggested);
-        if (teams.length === 0) {
-          setError("Nessuna squadra trovata nel foglio '" + suggested + "'. Prova a selezionare un altro foglio.");
-        } else {
-          setParsed(teams);
-        }
+        runParser(wb, suggested);
       } catch (err) {
         setError("Errore lettura file: " + err.message);
       } finally {
@@ -1174,31 +1172,69 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
     reader.readAsArrayBuffer(file);
   };
 
-  // Quando l'utente cambia foglio: ri-parsare
-  const changeSheet = (newSheet) => {
-    setSheetName(newSheet);
-    setError("");
-    if (!workbook) return;
+  const runParser = (wb, sheet) => {
     try {
-      const teams = parseTuttiIGiocatori(workbook, newSheet);
+      const teams = parseTuttiIGiocatori(wb, sheet);
       if (teams.length === 0) {
         setParsed(null);
-        setError("Nessuna squadra trovata nel foglio '" + newSheet + "'. Prova un altro foglio.");
+        setError("Nessuna squadra trovata nel foglio '" + sheet + "'.");
       } else {
         setParsed(teams);
+        // Inizializzo la conferma: tutte le squadre incluse di default
+        const conf = {};
+        teams.forEach(t => { conf[t.id] = { included: true, name: t.name }; });
+        setConfirmed(conf);
+        setError("");
+        setStep(2); // vai al passo conferma squadre
       }
     } catch (err) {
-      setError("Errore lettura foglio: " + err.message);
+      setError("Errore: " + err.message);
       setParsed(null);
     }
+  };
+
+  const changeSheet = (newSheet) => {
+    setSheetName(newSheet);
+    if (workbook) runParser(workbook, newSheet);
   };
 
   const resetFile = () => {
     setWorkbook(null);
     setSheetName("");
     setParsed(null);
+    setConfirmed({});
     setError("");
+    setStep(1);
   };
+
+  const toggleTeam = (teamId) => {
+    setConfirmed(Object.assign({}, confirmed, {
+      [teamId]: Object.assign({}, confirmed[teamId], { included: !confirmed[teamId].included })
+    }));
+  };
+
+  const renameTeam = (teamId, newName) => {
+    setConfirmed(Object.assign({}, confirmed, {
+      [teamId]: Object.assign({}, confirmed[teamId], { name: newName })
+    }));
+  };
+
+  const toggleAll = (value) => {
+    const conf = {};
+    Object.keys(confirmed).forEach(id => {
+      conf[id] = Object.assign({}, confirmed[id], { included: value });
+    });
+    setConfirmed(conf);
+  };
+
+  // Squadre finali (incluse + eventualmente rinominate)
+  const finalTeams = parsed ? parsed
+    .filter(t => confirmed[t.id] && confirmed[t.id].included)
+    .map(t => Object.assign({}, t, { name: (confirmed[t.id].name || t.name).trim() || t.name }))
+    : [];
+
+  const includedCount = finalTeams.length;
+  const includedPlayers = finalTeams.reduce((a, t) => a + t.players.length, 0);
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -1206,12 +1242,23 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
         <div className="modal-head">
           <h2>Importa da Excel</h2>
           <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-            Carica il file e scegli il foglio da importare.
+            {step === 1 && "Carica il file e scegli il foglio da importare."}
+            {step === 2 && "Conferma quali squadre importare. Puoi anche rinominarle."}
+            {step === 3 && "Anteprima dei giocatori per squadra prima di confermare l'import."}
           </div>
+          {workbook && (
+            <div style={{display:"flex", gap:6, marginTop:12, fontFamily:"'JetBrains Mono', monospace", fontSize:11, color:"var(--ink-soft)", letterSpacing:"0.08em"}}>
+              <span style={{color: step >= 1 ? "var(--green-field)" : "var(--ink-soft)", fontWeight: step === 1 ? 600 : 400}}>1. FILE</span>
+              <span>→</span>
+              <span style={{color: step >= 2 ? "var(--green-field)" : "var(--ink-soft)", fontWeight: step === 2 ? 600 : 400}}>2. SQUADRE</span>
+              <span>→</span>
+              <span style={{color: step >= 3 ? "var(--green-field)" : "var(--ink-soft)", fontWeight: step === 3 ? 600 : 400}}>3. GIOCATORI</span>
+            </div>
+          )}
         </div>
 
         {/* STEP 1: SELEZIONE FILE */}
-        {!workbook && !loading && (
+        {step === 1 && !workbook && !loading && (
           <>
             <div style={{padding:"24px", background:"var(--cream-soft)", border:"1.5px dashed var(--ink)", borderRadius:4, textAlign:"center", marginBottom: 14}}>
               <div style={{fontSize:48, marginBottom:8}}>📊</div>
@@ -1222,19 +1269,20 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
               </button>
             </div>
             <div style={{fontSize:12, color:"var(--ink-soft)", fontStyle:"italic"}}>
-              <strong>Formato standard:</strong> foglio "GIOCATORI 2026" (o "TUTTI I GIOCATORI") con blocchi-squadra (nome in MAIUSCOLO) seguiti dalle righe giocatori con colonne GIOCATORE, DATA DI NASCITA, LUOGO DI NASCITA, INDIRIZZO, N. CARTA DI IDENTITÀ, CODICE FISCALE.
+              <strong>Formato:</strong> foglio con blocchi-squadra (cella arancione) seguiti da righe giocatori.
+              Dopo il caricamento ti chiederò di confermare quali squadre importare.
             </div>
           </>
         )}
 
         {loading && <div style={{textAlign:"center", padding:30}}>Lettura file in corso...</div>}
 
-        {/* STEP 2: SELETTORE FOGLIO + PREVIEW */}
-        {workbook && (
+        {/* STEP 2: CONFERMA SQUADRE */}
+        {step === 2 && workbook && parsed && (
           <>
             <div style={{display:"grid", gridTemplateColumns:"1fr auto", gap:12, alignItems:"end", marginBottom:14, padding:"12px 14px", background:"var(--cream-soft)", border:"1.5px solid var(--ink)", borderRadius:3}}>
               <div>
-                <label>Foglio da importare</label>
+                <label>Foglio sorgente</label>
                 <select value={sheetName} onChange={e => changeSheet(e.target.value)}>
                   {workbook.SheetNames.map(n => (
                     <option key={n} value={n}>{n}</option>
@@ -1244,60 +1292,121 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
               <button className="btn btn-sm" onClick={resetFile} title="Cambia file">⤺ Altro file</button>
             </div>
 
-            {error && (
-              <div style={{padding:14, background:"#fff", border:"1.5px solid var(--terracotta-dark)", borderRadius:3, color:"var(--terracotta-dark)", marginBottom:14}}>
-                ⚠ {error}
-              </div>
-            )}
+            <div style={{padding:12, background:"rgba(232,185,72,0.15)", border:"1.5px solid var(--gold-deep)", borderRadius:3, marginBottom:14}}>
+              <strong>⚠ Verifica le squadre rilevate:</strong> spunta solo quelle giuste. Puoi anche rinominarle o cliccare ✕ accanto al nome per escluderle. <strong>{includedCount}</strong> squadre selezionate (<strong>{includedPlayers}</strong> giocatori).
+            </div>
 
-            {parsed && (
-              <>
-                <div style={{padding:12, background:"rgba(45,143,90,0.1)", border:"1.5px solid var(--green-field)", borderRadius:3, marginBottom:14}}>
-                  ✓ Foglio "<strong>{sheetName}</strong>": <strong>{parsed.length} squadre</strong> con <strong>{parsed.reduce((a,t)=>a+t.players.length,0)} giocatori</strong>.
-                </div>
-                <div className="import-preview">
-                  {parsed.map((t) => (
-                    <div key={t.id} className="import-team-block">
-                      <h4>{t.name}</h4>
-                      <div className="count">{t.players.length} giocatori</div>
-                      <ul>
-                        {t.players.slice(0, 6).map((p, j) => (
-                          <li key={j}>{p.name} · {formatDate(p.birthDate)}{p.birthPlace ? " · " + p.birthPlace : ""}</li>
-                        ))}
-                        {t.players.length > 6 && <li style={{fontStyle:"italic", opacity:0.7}}>...e altri {t.players.length - 6}</li>}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-actions">
-                  <button className="btn" onClick={onCancel}>Annulla</button>
-                  {existingTeamCount > 0 && (
-                    <button className="btn" onClick={() => onImport(parsed, "append")}>
-                      Aggiungi a esistenti ({existingTeamCount})
-                    </button>
-                  )}
-                  <button className="btn btn-primary" onClick={() => {
-                    if (existingTeamCount > 0 && !confirm("Vuoi SOSTITUIRE le " + existingTeamCount + " squadre esistenti?")) return;
-                    onImport(parsed, "replace");
+            <div style={{display:"flex", gap:6, marginBottom:10, flexWrap:"wrap"}}>
+              <button className="btn btn-sm" onClick={() => toggleAll(true)}>✓ Seleziona tutte</button>
+              <button className="btn btn-sm" onClick={() => toggleAll(false)}>✕ Deseleziona tutte</button>
+            </div>
+
+            <div className="import-preview">
+              {parsed.map(t => {
+                const conf = confirmed[t.id] || { included: true, name: t.name };
+                return (
+                  <div key={t.id} className="import-team-block" style={{
+                    borderLeftColor: conf.included ? "var(--green-field)" : "var(--ink-soft)",
+                    opacity: conf.included ? 1 : 0.45,
+                    background: conf.included ? "var(--paper)" : "var(--cream-soft)"
                   }}>
-                    {existingTeamCount > 0 ? "Sostituisci tutto" : "Importa"}
-                  </button>
-                </div>
-              </>
-            )}
+                    <div style={{display:"grid", gridTemplateColumns:"auto 1fr auto", gap:10, alignItems:"center"}}>
+                      <label style={{margin:0, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                        <input
+                          type="checkbox"
+                          checked={conf.included}
+                          onChange={() => toggleTeam(t.id)}
+                          style={{width:18, height:18, cursor:"pointer"}}
+                        />
+                      </label>
+                      <div>
+                        <input
+                          value={conf.name}
+                          onChange={e => renameTeam(t.id, e.target.value)}
+                          disabled={!conf.included}
+                          style={{
+                            fontFamily:"'Bebas Neue', sans-serif",
+                            fontSize:17,
+                            letterSpacing:"0.04em",
+                            padding:"4px 8px",
+                            border: conf.included ? "1.5px dashed var(--ink)" : "1.5px solid transparent",
+                            background: "transparent"
+                          }}
+                        />
+                        <div style={{fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"var(--ink-soft)", marginTop:2, letterSpacing:"0.06em"}}>
+                          {t.players.length} GIOCATORI · ORIGINALE: {t.name}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => toggleTeam(t.id)}
+                        title={conf.included ? "Escludi" : "Includi"}
+                      >
+                        {conf.included ? "✕" : "+"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-            {!parsed && !error && (
-              <div className="modal-actions">
-                <button className="btn" onClick={onCancel}>Chiudi</button>
-              </div>
-            )}
-
-            {!parsed && error && (
-              <div className="modal-actions">
-                <button className="btn" onClick={onCancel}>Chiudi</button>
-              </div>
-            )}
+            <div className="modal-actions">
+              <button className="btn" onClick={onCancel}>Annulla</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => setStep(3)}
+                disabled={includedCount === 0}
+              >
+                Avanti: vedi giocatori →
+              </button>
+            </div>
           </>
+        )}
+
+        {/* STEP 3: PREVIEW GIOCATORI + IMPORT */}
+        {step === 3 && parsed && (
+          <>
+            <div style={{padding:12, background:"rgba(45,143,90,0.1)", border:"1.5px solid var(--green-field)", borderRadius:3, marginBottom:14}}>
+              ✓ Sto per importare <strong>{includedCount} squadre</strong> con <strong>{includedPlayers} giocatori</strong>. Controlla i giocatori qui sotto, poi conferma.
+            </div>
+
+            <div className="import-preview">
+              {finalTeams.map(t => (
+                <div key={t.id} className="import-team-block">
+                  <h4>{t.name}</h4>
+                  <div className="count">{t.players.length} giocatori</div>
+                  <ul>
+                    {t.players.slice(0, 8).map((p, j) => (
+                      <li key={j}>{p.name} · {formatDate(p.birthDate)}{p.birthPlace ? " · " + p.birthPlace : ""}</li>
+                    ))}
+                    {t.players.length > 8 && <li style={{fontStyle:"italic", opacity:0.7}}>...e altri {t.players.length - 8}</li>}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setStep(2)}>← Indietro</button>
+              <button className="btn" onClick={onCancel}>Annulla</button>
+              {existingTeamCount > 0 && (
+                <button className="btn" onClick={() => onImport(finalTeams, "append")}>
+                  Aggiungi a esistenti ({existingTeamCount})
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={() => {
+                if (existingTeamCount > 0 && !confirm("Vuoi SOSTITUIRE le " + existingTeamCount + " squadre esistenti?")) return;
+                onImport(finalTeams, "replace");
+              }}>
+                {existingTeamCount > 0 ? "Sostituisci tutto" : "Importa"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {error && (
+          <div style={{padding:14, background:"#fff", border:"1.5px solid var(--terracotta-dark)", borderRadius:3, color:"var(--terracotta-dark)", marginBottom:14}}>
+            ⚠ {error}
+          </div>
         )}
       </div>
     </div>
