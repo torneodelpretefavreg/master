@@ -382,8 +382,24 @@ const firebaseConfig = {
   appId: "1:000000000000:web:0000000000000000000000"
 };
 
+// Firebase secondario: progetto contabilità Futsal Fabbrico (contfutsal-fad6a)
+// Usato per pubblicare iscrizioni squadre e leggere flag di pagamento
+const accountingFirebaseConfig = {
+  apiKey: "AIzaSyAvmaW6rIBEfpim_XJmbQOIlYwInAJQJeU",
+  authDomain: "contfutsal-fad6a.firebaseapp.com",
+  databaseURL: "https://contfutsal-fad6a-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "contfutsal-fad6a",
+  storageBucket: "contfutsal-fad6a.firebasestorage.app",
+  messagingSenderId: "146841375979",
+  appId: "1:146841375979:web:e7a506f9cb1300eccb5aae"
+};
+
 const ROOT_PATH = "tdp_manager";
 const STAFF_PASSWORD = "tdp2026";
+
+// Importi default (modificabili da Admin)
+const QUOTA_ISCRIZIONE_DEFAULT = 150;
+const QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT = 5;
 
 function useFirebase() {
   const [online, setOnline] = useState(false);
@@ -391,10 +407,28 @@ function useFirebase() {
   useEffect(() => {
     try {
       if (typeof firebase === 'undefined') return;
-      const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
+      const app = firebase.apps.find(a => a.name === '[DEFAULT]') || firebase.initializeApp(firebaseConfig);
       dbRef.current = app.database();
       dbRef.current.ref(".info/connected").on("value", (snap) => setOnline(!!snap.val()));
-    } catch (e) { console.warn("Firebase non disponibile:", e.message); }
+    } catch (e) { console.warn("Firebase TdP non disponibile:", e.message); }
+  }, []);
+  return { online, db: dbRef };
+}
+
+// Connessione al secondo Firebase (progetto contabilità)
+function useAccountingFirebase() {
+  const [online, setOnline] = useState(false);
+  const dbRef = useRef(null);
+  useEffect(() => {
+    try {
+      if (typeof firebase === 'undefined') return;
+      // Inizializzo come app NOMINATA per non collidere col Firebase di default (TdP)
+      let app;
+      try { app = firebase.app("accounting"); }
+      catch { app = firebase.initializeApp(accountingFirebaseConfig, "accounting"); }
+      dbRef.current = app.database();
+      dbRef.current.ref(".info/connected").on("value", (snap) => setOnline(!!snap.val()));
+    } catch (e) { console.warn("Firebase contabilità non disponibile:", e.message); }
   }, []);
   return { online, db: dbRef };
 }
@@ -426,6 +460,59 @@ function useFirebaseValue(db, path, fallback) {
     if (db.current) db.current.ref(fullPath).set(newValue).catch(e => console.warn("write err", path, e));
   };
   return [value, write];
+}
+
+// Hook che SCRIVE le iscrizioni squadre su Firebase contabilità + LEGGE i pagamenti
+// teams: array squadre da pubblicare
+// quotaIscrizione: importo fisso (es. 150)
+// quotaPerGiocatore: importo per giocatore assicurazione (es. 5)
+// Ritorna: { payments: { teamId: { importoPagato, dataPagamento, completato, ... } }, online }
+function useIscrizioniSync(accountingDb, teams, quotaIscrizione, quotaPerGiocatore, enabled) {
+  const [payments, setPayments] = useState(() => {
+    try {
+      const raw = localStorage.getItem("tdp.pagamenti");
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+
+  // PUBBLICA le iscrizioni su Firebase contabilità ogni volta che teams cambia
+  useEffect(() => {
+    if (!enabled || !accountingDb.current || !teams) return;
+    const ref = accountingDb.current.ref("iscrizioni_tdp");
+    const data = {};
+    teams.forEach(t => {
+      if (!t.id || !t.name) return;
+      const numGiocatori = (t.players || []).length;
+      const assicurazione = numGiocatori * quotaPerGiocatore;
+      const totale = quotaIscrizione + assicurazione;
+      data[t.id] = {
+        teamId: t.id,
+        nomeSquadra: t.name,
+        numeroGiocatori: numGiocatori,
+        quotaIscrizione: quotaIscrizione,
+        quotaAssicurazione: assicurazione,
+        totaleDovuto: totale,
+        girone: t.girone || "",
+        aggiornato: new Date().toISOString(),
+      };
+    });
+    ref.set(data).catch(e => console.warn("Errore push iscrizioni:", e.message));
+  }, [accountingDb, teams, quotaIscrizione, quotaPerGiocatore, enabled]);
+
+  // LEGGE i pagamenti dalla contabilità (live)
+  useEffect(() => {
+    if (!enabled || !accountingDb.current) return;
+    const ref = accountingDb.current.ref("pagamenti_tdp");
+    const cb = (snap) => {
+      const v = snap.val() || {};
+      setPayments(v);
+      try { localStorage.setItem("tdp.pagamenti", JSON.stringify(v)); } catch {}
+    };
+    ref.on("value", cb, (err) => console.warn("read pagamenti err:", err));
+    return () => ref.off("value", cb);
+  }, [accountingDb, enabled]);
+
+  return payments;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -647,6 +734,7 @@ function parseTuttiIGiocatori(workbook, sheetName) {
 
 function App() {
   const fb = useFirebase();
+  const accountingFb = useAccountingFirebase();
   const [view, setView] = useState("home");
   const [role, setRole] = useState(() => localStorage.getItem("tdp.role") || "public");
   const [toast, setToast] = useState(null);
@@ -656,9 +744,23 @@ function App() {
   const [config, setConfig] = useFirebaseValue(fb.db, "config", { tournamentName: "Torneo del Prete 2026", initialized: false });
   const [staff, setStaff] = useFirebaseValue(fb.db, "staff", []);
   const [positions, setPositions] = useFirebaseValue(fb.db, "positions", DEFAULT_POSITIONS);
-  // shifts: { "YYYY-MM-DD::positionId": staffId | null }
   const [shifts, setShifts] = useFirebaseValue(fb.db, "shifts", {});
   const [inventory, setInventory] = useFirebaseValue(fb.db, "inventory", []);
+  // Quote pagamenti (modificabili da Admin)
+  const [quoteConfig, setQuoteConfig] = useFirebaseValue(fb.db, "quoteConfig", {
+    quotaIscrizione: QUOTA_ISCRIZIONE_DEFAULT,
+    quotaPerGiocatore: QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT,
+    syncEnabled: true,
+  });
+
+  // Hook che pubblica iscrizioni su Firebase contabilità e legge pagamenti
+  const payments = useIscrizioniSync(
+    accountingFb.db,
+    teams,
+    quoteConfig.quotaIscrizione || QUOTA_ISCRIZIONE_DEFAULT,
+    quoteConfig.quotaPerGiocatore || QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT,
+    quoteConfig.syncEnabled !== false
+  );
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
   const setRolePersistent = (r) => { setRole(r); localStorage.setItem("tdp.role", r); };
@@ -687,7 +789,7 @@ function App() {
       <Tabs view={view} onChange={setView} canEdit={canEdit} />
       <main>
         {view === "home" && <Home teams={teams} matches={matches} config={config} />}
-        {view === "squadre" && <TeamsView teams={teams} setTeams={setTeams} canEdit={canEdit} showToast={showToast} />}
+        {view === "squadre" && <TeamsView teams={teams} setTeams={setTeams} canEdit={canEdit} showToast={showToast} payments={payments} quoteConfig={quoteConfig} />}
         {view === "gironi" && <GironiView teams={teams} matches={matches} />}
         {view === "calendario" && <CalendarView teams={teams} matches={matches} setMatches={setMatches} canEdit={canEdit} showToast={showToast} />}
         {view === "statistiche" && <StatsView teams={teams} matches={matches} />}
@@ -707,7 +809,7 @@ function App() {
             <p>Clicca sulla pillola "Pubblico" in alto a destra per autenticarti.</p>
           </div>
         )}
-        {view === "admin" && canEdit && <AdminView config={config} setConfig={setConfig} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} onRegenerate={regenerateSchedule} showToast={showToast} />}
+        {view === "admin" && canEdit && <AdminView config={config} setConfig={setConfig} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} onRegenerate={regenerateSchedule} showToast={showToast} quoteConfig={quoteConfig} setQuoteConfig={setQuoteConfig} payments={payments} accountingOnline={accountingFb.online} />}
         {view === "admin" && !canEdit && (
           <div className="empty">
             <div className="empty-icon">🔒</div>
@@ -846,7 +948,7 @@ function Home({ teams, matches, config }) {
   );
 }
 
-function TeamsView({ teams, setTeams, canEdit, showToast }) {
+function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig }) {
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("ALL");
   const [importOpen, setImportOpen] = useState(false);
@@ -933,7 +1035,16 @@ function TeamsView({ teams, setTeams, canEdit, showToast }) {
 
       <div className="grid-2">
         {filtered.map(team => (
-          <TeamCard key={team.id} team={team} canEdit={canEdit} onEdit={()=>setEditing(team)} onDelete={()=>deleteTeam(team.id)} />
+          <TeamCard
+            key={team.id}
+            team={team}
+            canEdit={canEdit}
+            onEdit={()=>setEditing(team)}
+            onDelete={()=>deleteTeam(team.id)}
+            payment={payments ? payments[team.id] : null}
+            quotaIscrizione={(quoteConfig && quoteConfig.quotaIscrizione) || QUOTA_ISCRIZIONE_DEFAULT}
+            quotaPerGiocatore={(quoteConfig && quoteConfig.quotaPerGiocatore) || QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT}
+          />
         ))}
       </div>
 
@@ -943,9 +1054,31 @@ function TeamsView({ teams, setTeams, canEdit, showToast }) {
   );
 }
 
-function TeamCard({ team, canEdit, onEdit, onDelete }) {
+function TeamCard({ team, canEdit, onEdit, onDelete, payment, quotaIscrizione, quotaPerGiocatore }) {
   const initials = team.name.split(/\s+/).slice(0,2).map(w => w[0]).join("").toUpperCase();
   const captainPlayer = (team.players || []).find(p => p.isCaptain);
+  const numGiocatori = (team.players || []).length;
+  const assicurazione = numGiocatori * quotaPerGiocatore;
+  const totale = quotaIscrizione + assicurazione;
+
+  // Stato pagamento
+  const importoPagato = payment && payment.importoPagato ? parseFloat(payment.importoPagato) : 0;
+  const completato = payment && payment.completato;
+  let statoPagamento, colorStato, bgStato;
+  if (completato || importoPagato >= totale) {
+    statoPagamento = "✓ Pagato";
+    colorStato = "var(--cream)";
+    bgStato = "var(--green-field)";
+  } else if (importoPagato > 0) {
+    statoPagamento = "⚠ Parziale " + importoPagato + "€/" + totale + "€";
+    colorStato = "var(--ink)";
+    bgStato = "var(--gold)";
+  } else {
+    statoPagamento = "● Da incassare " + totale + "€";
+    colorStato = "var(--cream)";
+    bgStato = "var(--terracotta-dark)";
+  }
+
   return (
     <div className="team-card">
       <div className="team-card-header">
@@ -955,7 +1088,7 @@ function TeamCard({ team, canEdit, onEdit, onDelete }) {
           <div className="girone-tag">
             {team.girone ? "GIRONE " + team.girone : "NESSUN GIRONE"}
             {captainPlayer ? " · CAP. " + captainPlayer.name.toUpperCase() : ""}
-            {(team.players && team.players.length) ? " · " + team.players.length + " GIOC." : ""}
+            {numGiocatori ? " · " + numGiocatori + " GIOC." : ""}
           </div>
         </div>
         {canEdit && (
@@ -965,6 +1098,22 @@ function TeamCard({ team, canEdit, onEdit, onDelete }) {
           </div>
         )}
       </div>
+
+      {/* Banner stato pagamento */}
+      <div style={{
+        background: bgStato, color: colorStato,
+        padding: "8px 12px", borderRadius: 3, marginTop: 8, marginBottom: 4,
+        fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+        letterSpacing: "0.08em", textTransform: "uppercase",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        border: "1.5px solid var(--ink)", boxShadow: "2px 2px 0 var(--ink)",
+      }}>
+        <span style={{fontWeight: 600}}>{statoPagamento}</span>
+        <span style={{fontSize: 10, opacity: 0.85}}>
+          {quotaIscrizione}€ + {numGiocatori}×{quotaPerGiocatore}€ = {totale}€
+        </span>
+      </div>
+
       {team.players && team.players.length > 0 && (
         <ul className="player-list">
           {team.players.map((p, i) => (
@@ -3032,7 +3181,110 @@ function StaffEditModal({ person, positions, turniCount, onSave, onDelete, onCan
   );
 }
 
-function AdminView({ config, setConfig, teams, setTeams, matches, setMatches, onRegenerate, showToast }) {
+function PagamentiCard({ quoteConfig, setQuoteConfig, teams, payments, accountingOnline, showToast }) {
+  const [iscDraft, setIscDraft] = useState(String(quoteConfig.quotaIscrizione || QUOTA_ISCRIZIONE_DEFAULT));
+  const [assDraft, setAssDraft] = useState(String(quoteConfig.quotaPerGiocatore || QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT));
+
+  // Sincronizza i draft quando quoteConfig cambia (es. all'inizio quando arriva da Firebase)
+  useEffect(() => {
+    setIscDraft(String(quoteConfig.quotaIscrizione || QUOTA_ISCRIZIONE_DEFAULT));
+    setAssDraft(String(quoteConfig.quotaPerGiocatore || QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT));
+  }, [quoteConfig.quotaIscrizione, quoteConfig.quotaPerGiocatore]);
+
+  const totalePagato = teams.reduce((acc, t) => {
+    const p = payments && payments[t.id];
+    return acc + (p && p.importoPagato ? parseFloat(p.importoPagato) : 0);
+  }, 0);
+  const totaleDovuto = teams.reduce((acc, t) => {
+    const numG = (t.players || []).length;
+    return acc + (parseFloat(iscDraft) || 0) + numG * (parseFloat(assDraft) || 0);
+  }, 0);
+  const pagateCount = teams.filter(t => {
+    const p = payments && payments[t.id];
+    const numG = (t.players || []).length;
+    const totale = (parseFloat(iscDraft) || 0) + numG * (parseFloat(assDraft) || 0);
+    return p && (p.completato || (p.importoPagato && p.importoPagato >= totale));
+  }).length;
+
+  const handleSave = () => {
+    const isc = parseFloat(iscDraft);
+    const ass = parseFloat(assDraft);
+    if (isNaN(isc) || isNaN(ass) || isc < 0 || ass < 0) {
+      alert("Inserisci importi validi (numeri positivi)");
+      return;
+    }
+    setQuoteConfig(Object.assign({}, quoteConfig, {
+      quotaIscrizione: isc,
+      quotaPerGiocatore: ass,
+    }));
+    showToast("Quote aggiornate");
+  };
+
+  const toggleSync = () => {
+    setQuoteConfig(Object.assign({}, quoteConfig, {
+      syncEnabled: !(quoteConfig.syncEnabled !== false),
+    }));
+  };
+
+  const syncOn = quoteConfig.syncEnabled !== false;
+
+  return (
+    <div className="card">
+      <h3 className="display" style={{fontSize:22, marginBottom:8, letterSpacing:"0.04em"}}>Pagamenti & Contabilità</h3>
+
+      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:14, fontFamily:"'JetBrains Mono', monospace", fontSize:11, letterSpacing:"0.08em"}}>
+        <span style={{
+          width:8, height:8, borderRadius:"50%",
+          background: (syncOn && accountingOnline) ? "var(--green-line)" : "var(--terracotta-dark)",
+          boxShadow: "0 0 6px " + ((syncOn && accountingOnline) ? "var(--green-line)" : "var(--terracotta-dark)")
+        }} />
+        <span style={{color:"var(--ink-soft)"}}>
+          {syncOn
+            ? (accountingOnline ? "SYNC ATTIVA · COLLEGATA A CONTABILITÀ" : "SYNC ATTIVA · OFFLINE")
+            : "SYNC DISATTIVATA"}
+        </span>
+      </div>
+
+      <div className="form-row" style={{gridTemplateColumns:"1fr 1fr"}}>
+        <div>
+          <label>Quota iscrizione (€)</label>
+          <input type="number" min="0" step="0.01" value={iscDraft} onChange={e=>setIscDraft(e.target.value)} />
+        </div>
+        <div>
+          <label>Assicurazione per giocatore (€)</label>
+          <input type="number" min="0" step="0.01" value={assDraft} onChange={e=>setAssDraft(e.target.value)} />
+        </div>
+      </div>
+
+      <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:14}}>
+        <button className="btn btn-primary" onClick={handleSave}>Salva quote</button>
+        <button className="btn" onClick={toggleSync}>{syncOn ? "Disattiva sync" : "Attiva sync"}</button>
+      </div>
+
+      <div style={{padding:"12px", background:"var(--cream-soft)", border:"1.5px solid var(--ink)", borderRadius:3, fontSize:13}}>
+        <div style={{display:"flex", justifyContent:"space-between", marginBottom:6}}>
+          <span>Totale dovuto:</span>
+          <strong style={{fontFamily:"'Bebas Neue', sans-serif", fontSize:20}}>{totaleDovuto.toFixed(0)}€</strong>
+        </div>
+        <div style={{display:"flex", justifyContent:"space-between", marginBottom:6}}>
+          <span>Totale incassato:</span>
+          <strong style={{fontFamily:"'Bebas Neue', sans-serif", fontSize:20, color:"var(--green-field)"}}>{totalePagato.toFixed(0)}€</strong>
+        </div>
+        <div style={{display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1px dashed var(--ink)"}}>
+          <span>Squadre saldate:</span>
+          <strong>{pagateCount} / {teams.length}</strong>
+        </div>
+      </div>
+
+      <p style={{fontSize:11, color:"var(--ink-soft)", fontStyle:"italic", marginTop:12, lineHeight:1.5}}>
+        Le iscrizioni vengono pubblicate in tempo reale sul progetto Firebase della contabilità.
+        Quando un pagamento viene registrato lì, lo stato si aggiorna automaticamente qui.
+      </p>
+    </div>
+  );
+}
+
+function AdminView({ config, setConfig, teams, setTeams, matches, setMatches, onRegenerate, showToast, quoteConfig, setQuoteConfig, payments, accountingOnline }) {
   const [nameDraft, setNameDraft] = useState(config.tournamentName || "");
 
   const exportJSON = () => {
@@ -3127,6 +3379,15 @@ function AdminView({ config, setConfig, teams, setTeams, matches, setMatches, on
           </div>
           <button className="btn btn-primary" onClick={()=>{ setConfig(Object.assign({}, config, {tournamentName: nameDraft})); showToast("Salvato"); }}>Salva nome</button>
         </div>
+
+        <PagamentiCard
+          quoteConfig={quoteConfig}
+          setQuoteConfig={setQuoteConfig}
+          teams={teams}
+          payments={payments}
+          accountingOnline={accountingOnline}
+          showToast={showToast}
+        />
 
         <div className="card">
           <h3 className="display" style={{fontSize:22, marginBottom:12, letterSpacing:"0.04em"}}>Calendario gironi</h3>
