@@ -270,6 +270,83 @@
   .stats-empty { padding: 30px 16px; text-align: center; color: var(--ink-soft); font-style: italic; font-size: 13px; }
   .stats-pos { display: inline-block; width: 24px; text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--ink-soft); margin-right: 6px; }
 
+  /* === CASSA / REPORT CASSAPRO === */
+  .cassa-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .cassa-day-btn { font-family: 'Bebas Neue', sans-serif; font-size: 13px; padding: 8px 14px; border: 1.5px solid var(--ink); background: var(--paper); cursor: pointer; border-radius: 3px; letter-spacing: 0.06em; text-align: center; min-width: 90px; transition: all 0.15s; }
+  .cassa-day-btn:hover { background: var(--cream-soft); }
+  .cassa-day-btn.active { background: var(--green-deep); color: var(--gold); border-color: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+  .cassa-day-btn .day-label { display: block; font-size: 15px; }
+  .cassa-day-btn .day-sub { display: block; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; opacity: 0.7; margin-top: 2px; }
+  .cassa-day-btn.live { background: var(--terracotta); color: var(--cream); border-color: var(--terracotta-dark); }
+  .cassa-day-btn.live::before { content: '● '; }
+
+  .cassa-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--ink); border: 2px solid var(--ink); margin-bottom: 28px; }
+  .cassa-kpi { background: var(--paper); padding: 22px 20px; position: relative; }
+  .cassa-kpi-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 6px; }
+  .cassa-kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; }
+  .cassa-kpi-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-soft); margin-top: 6px; letter-spacing: 0.06em; }
+  .cassa-kpi.total .cassa-kpi-value { color: var(--green-field); font-size: 56px; }
+  .cassa-kpi.cibo .cassa-kpi-value { color: #b8870f; }
+  .cassa-kpi.fritti .cassa-kpi-value { color: var(--terracotta-dark); }
+  .cassa-kpi.bar .cassa-kpi-value { color: #2a4a8c; }
+
+  .cassa-section { background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px; box-shadow: 4px 4px 0 var(--ink); margin-bottom: 28px; overflow: hidden; }
+  .cassa-section-head { padding: 14px 20px; background: var(--green-deep); color: var(--gold); display: flex; justify-content: space-between; align-items: center; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 0.06em; }
+  .cassa-section-body { padding: 0; }
+
+  .top-products { padding: 0; }
+  .top-product-row { display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; padding: 12px 20px; border-bottom: 1px solid rgba(22,26,24,0.1); align-items: center; }
+  .top-product-row:last-child { border-bottom: none; }
+  .top-product-row .rank { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--ink-soft); text-align: center; }
+  .top-product-row.top-1 .rank { color: var(--gold-deep); }
+  .top-product-row.top-2 .rank { color: #888; }
+  .top-product-row.top-3 .rank { color: #cd7f32; }
+  .top-product-row .name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 15px; }
+  .top-product-row .cat-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.08em; }
+  .top-product-row .qty { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--green-field); }
+  .top-product-row .qty-unit { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+  .top-product-row .revenue { font-family: 'Bebas Neue', sans-serif; font-size: 20px; min-width: 70px; text-align: right; color: var(--ink); }
+
+  .receipts-list { padding: 0; max-height: 480px; overflow-y: auto; }
+  .receipt-row { padding: 14px 20px; border-bottom: 1px solid rgba(22,26,24,0.1); cursor: pointer; transition: background 0.15s; }
+  .receipt-row:hover { background: var(--cream-soft); }
+  .receipt-row.expanded { background: var(--cream-soft); }
+  .receipt-row-head { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 12px; align-items: center; }
+  .receipt-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--ink-soft); min-width: 60px; }
+  .receipt-centro { font-family: 'Bebas Neue', sans-serif; font-size: 13px; padding: 3px 10px; border-radius: 2px; letter-spacing: 0.06em; background: var(--ink); color: var(--cream); }
+  .receipt-centro.cibo { background: #b8870f; }
+  .receipt-centro.fritti { background: var(--terracotta-dark); }
+  .receipt-centro.bar { background: #2a4a8c; }
+  .receipt-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+  .receipt-pay { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 6px; border: 1px solid var(--ink-soft); border-radius: 2px; color: var(--ink-soft); text-transform: uppercase; }
+  .receipt-total { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--green-field); min-width: 70px; text-align: right; }
+  .receipt-items { padding: 10px 16px 4px 80px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .receipt-items li { padding: 2px 0; display: flex; justify-content: space-between; color: var(--ink-soft); }
+  .receipt-items li .item-name { flex: 1; }
+
+  .hourly-chart { padding: 20px; }
+  .hourly-bars { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding: 10px 0; border-bottom: 1.5px solid var(--ink); margin-bottom: 8px; }
+  .hourly-bar { flex: 1; background: linear-gradient(180deg, var(--green-bright) 0%, var(--green-field) 100%); border: 1px solid var(--ink); border-bottom: none; border-radius: 2px 2px 0 0; position: relative; transition: all 0.2s; min-height: 2px; }
+  .hourly-bar:hover { background: var(--gold); }
+  .hourly-bar .bar-value { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-family: 'Bebas Neue', sans-serif; font-size: 11px; color: var(--ink); white-space: nowrap; }
+  .hourly-labels { display: flex; gap: 4px; }
+  .hourly-label { flex: 1; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.06em; }
+
+  .cassa-empty { padding: 60px 20px; text-align: center; color: var(--ink-soft); }
+  .cassa-empty .empty-icon { font-size: 60px; margin-bottom: 16px; opacity: 0.3; }
+  .cassa-empty h3 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; margin-bottom: 8px; }
+  .cassa-empty p { font-style: italic; }
+
+  @media (max-width: 720px) {
+    .cassa-kpi-value { font-size: 36px; }
+    .cassa-kpi.total .cassa-kpi-value { font-size: 42px; }
+    .receipt-row-head { grid-template-columns: 1fr auto; gap: 8px; }
+    .receipt-num, .receipt-centro, .receipt-pay { display: none; }
+    .receipt-items { padding-left: 16px; }
+    .top-product-row { grid-template-columns: 28px 1fr auto; gap: 10px; padding: 10px 14px; }
+    .top-product-row .revenue { display: none; }
+  }
+
   /* === INVENTARIO === */
   .inv-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--ink); border: 2px solid var(--ink); margin-bottom: 28px; }
   .inv-summary .stat { background: var(--paper); padding: 18px 16px; }
@@ -809,6 +886,14 @@ function App() {
             <p>Clicca sulla pillola "Pubblico" in alto a destra per autenticarti.</p>
           </div>
         )}
+        {view === "cassa" && canEdit && <CassaView db={fb.db} />}
+        {view === "cassa" && !canEdit && (
+          <div className="empty">
+            <div className="empty-icon">🔒</div>
+            <h3>Accesso staff richiesto</h3>
+            <p>Clicca sulla pillola "Pubblico" in alto a destra per autenticarti.</p>
+          </div>
+        )}
         {view === "admin" && canEdit && <AdminView config={config} setConfig={setConfig} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} onRegenerate={regenerateSchedule} showToast={showToast} quoteConfig={quoteConfig} setQuoteConfig={setQuoteConfig} payments={payments} accountingOnline={accountingFb.online} />}
         {view === "admin" && !canEdit && (
           <div className="empty">
@@ -862,6 +947,7 @@ function Tabs({ view, onChange, canEdit }) {
     { id: "gironi", label: "Gironi" },
     { id: "calendario", label: "Calendario" },
     { id: "statistiche", label: "Statistiche" },
+    { id: "cassa", label: "Cassa", staffOnly: true },
     { id: "turni", label: "Turni", staffOnly: true },
     { id: "inventario", label: "Inventario", staffOnly: true },
     { id: "admin", label: "Admin", staffOnly: true },
@@ -2712,6 +2798,361 @@ function InventoryImportModal({ onImport, onCancel, existingCount }) {
         )}
       </div>
     </div>
+  );
+}
+
+// =================================================================
+// CASSA — Report letti da CassaPro (torneo/orders su Firebase)
+// =================================================================
+// Parsing data CassaPro: formato "dd/mm/yyyy, HH:MM:SS" (italiano)
+function parseCassaProDate(s) {
+  if (!s) return null;
+  if (s instanceof Date) return s;
+  const m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2}):?(\d{0,2})/);
+  if (!m) return null;
+  return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6] || "0"));
+}
+
+// Estrae solo la parte data (yyyy-mm-dd) dal timestamp CassaPro
+function dateOnlyFromCassa(s) {
+  const d = parseCassaProDate(s);
+  if (!d || isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+// Riconosce il centro (CIBO/FRITTI/BAR) dalla stringa salvata da CassaPro
+function getCentroKey(centro) {
+  if (!centro) return "altro";
+  const s = String(centro).toUpperCase();
+  if (s.includes("CIBO")) return "cibo";
+  if (s.includes("FRITTI")) return "fritti";
+  if (s.includes("BAR")) return "bar";
+  return "altro";
+}
+
+function CassaView({ db }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState("today"); // "today" | "ALL" | "YYYY-MM-DD"
+  const [expandedReceipt, setExpandedReceipt] = useState(null);
+
+  // Carica gli ordini da Firebase /torneo/orders (path di CassaPro)
+  useEffect(() => {
+    if (!db || !db.current) return;
+    const ref = db.current.ref("torneo/orders");
+    const cb = (snap) => {
+      const v = snap.val() || {};
+      const list = Object.keys(v).map(k => Object.assign({}, v[k], { _key: k }));
+      // Ordina per data ASC (recenti in fondo)
+      list.sort((a, b) => {
+        const da = parseCassaProDate(a.date);
+        const db_ = parseCassaProDate(b.date);
+        if (!da) return 1;
+        if (!db_) return -1;
+        return da.getTime() - db_.getTime();
+      });
+      setOrders(list);
+      setLoading(false);
+    };
+    ref.on("value", cb, (err) => { console.warn("orders err:", err); setLoading(false); });
+    return () => ref.off("value", cb);
+  }, [db]);
+
+  // Data odierna in formato ISO
+  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  // Date disponibili: unione di TOURNAMENT_DATES + date trovate negli ordini
+  const availableDates = useMemo(() => {
+    const set = new Set();
+    TOURNAMENT_DATES.forEach(d => set.add(d.iso));
+    orders.forEach(o => {
+      const iso = dateOnlyFromCassa(o.date);
+      if (iso) set.add(iso);
+    });
+    return Array.from(set).sort();
+  }, [orders]);
+
+  // Filtra ordini per la data selezionata
+  const filteredOrders = useMemo(() => {
+    if (selectedDate === "ALL") return orders;
+    if (selectedDate === "today") {
+      return orders.filter(o => dateOnlyFromCassa(o.date) === todayISO);
+    }
+    return orders.filter(o => dateOnlyFromCassa(o.date) === selectedDate);
+  }, [orders, selectedDate, todayISO]);
+
+  // Aggregazioni
+  const totals = useMemo(() => {
+    const t = { cibo: 0, fritti: 0, bar: 0, altro: 0, totale: 0, scontrini: 0 };
+    filteredOrders.forEach(o => {
+      const total = parseFloat(o.total) || 0;
+      const key = getCentroKey(o.centro);
+      t[key] = (t[key] || 0) + total;
+      t.totale += total;
+      t.scontrini++;
+    });
+    return t;
+  }, [filteredOrders]);
+
+  // Top prodotti
+  const topProducts = useMemo(() => {
+    const map = {};
+    filteredOrders.forEach(o => {
+      (o.items || []).forEach(it => {
+        const key = (it.name || "?").trim();
+        if (!map[key]) {
+          map[key] = { name: key, cat: it.cat || "", qty: 0, revenue: 0 };
+        }
+        const qty = parseFloat(it.qty) || 0;
+        const price = parseFloat(it.price) || 0;
+        map[key].qty += qty;
+        map[key].revenue += qty * price;
+      });
+    });
+    return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 15);
+  }, [filteredOrders]);
+
+  // Vendite per ora (00-23)
+  const hourlyData = useMemo(() => {
+    const buckets = Array(24).fill(0);
+    filteredOrders.forEach(o => {
+      const d = parseCassaProDate(o.date);
+      if (d) buckets[d.getHours()] += parseFloat(o.total) || 0;
+    });
+    // Trova prima e ultima ora con dati per non mostrare l'intero arco
+    let firstHour = 18, lastHour = 23;
+    for (let h = 0; h < 24; h++) if (buckets[h] > 0) { firstHour = Math.min(firstHour, h); lastHour = Math.max(lastHour, h); }
+    firstHour = Math.max(0, Math.min(firstHour, 17)); // mostra almeno da 17 in poi
+    lastHour = Math.max(lastHour, 23);
+    const visible = [];
+    for (let h = firstHour; h <= lastHour; h++) visible.push({ hour: h, value: buckets[h] });
+    return visible;
+  }, [filteredOrders]);
+
+  const maxHourly = Math.max(1, ...hourlyData.map(h => h.value));
+
+  // Funzioni helper per visualizzare le date
+  const isoToLabel = (iso) => {
+    const td = TOURNAMENT_DATES.find(d => d.iso === iso);
+    if (td) return td.label;
+    const d = new Date(iso);
+    const giorni = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+    const mesi = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+    return giorni[d.getDay()] + " " + d.getDate() + " " + mesi[d.getMonth()];
+  };
+
+  const tornamentoLabel = (iso) => {
+    const td = TOURNAMENT_DATES.find(d => d.iso === iso);
+    return td ? td.phase : "";
+  };
+
+  // Gruppo per data per il selettore se non è "today" o "ALL"
+  const reverseFilteredOrders = filteredOrders.slice().reverse();
+
+  return (
+    <>
+      <div className="section-head">
+        <div>
+          <h1>Cassa</h1>
+          <div className="subtitle">Report di CassaPro · {orders.length} scontrini totali</div>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="cassa-empty">
+          <div className="empty-icon">⏳</div>
+          <h3>Caricamento dati cassa...</h3>
+        </div>
+      )}
+
+      {!loading && orders.length === 0 && (
+        <div className="cassa-empty">
+          <div className="empty-icon">💰</div>
+          <h3>Nessuno scontrino registrato</h3>
+          <p>Verifica che CassaPro sia configurato sullo stesso Firebase (cassapro-tdp) e abbia generato almeno uno scontrino.</p>
+        </div>
+      )}
+
+      {!loading && orders.length > 0 && (
+        <>
+          {/* SELETTORE SERATA */}
+          <div className="cassa-selector">
+            <button
+              className={"cassa-day-btn live " + (selectedDate === "today" ? "active" : "")}
+              onClick={() => setSelectedDate("today")}
+            >
+              <span className="day-label">OGGI</span>
+              <span className="day-sub">{isoToLabel(todayISO)}</span>
+            </button>
+            <button
+              className={"cassa-day-btn " + (selectedDate === "ALL" ? "active" : "")}
+              onClick={() => setSelectedDate("ALL")}
+            >
+              <span className="day-label">TUTTE</span>
+              <span className="day-sub">{orders.length} SCONTRINI</span>
+            </button>
+            {availableDates.map(iso => {
+              const phase = tornamentoLabel(iso);
+              return (
+                <button
+                  key={iso}
+                  className={"cassa-day-btn " + (selectedDate === iso ? "active" : "")}
+                  onClick={() => setSelectedDate(iso)}
+                >
+                  <span className="day-label">{isoToLabel(iso)}</span>
+                  <span className="day-sub">{phase || ""}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* KPI */}
+          <div className="cassa-kpi-grid">
+            <div className="cassa-kpi total">
+              <div className="cassa-kpi-label">Incasso totale</div>
+              <div className="cassa-kpi-value">{totals.totale.toFixed(0)}€</div>
+              <div className="cassa-kpi-sub">{totals.scontrini} scontrini</div>
+            </div>
+            <div className="cassa-kpi cibo">
+              <div className="cassa-kpi-label">🍕 CIBO</div>
+              <div className="cassa-kpi-value">{totals.cibo.toFixed(0)}€</div>
+              <div className="cassa-kpi-sub">{totals.totale > 0 ? Math.round(totals.cibo / totals.totale * 100) + "%" : "—"}</div>
+            </div>
+            <div className="cassa-kpi fritti">
+              <div className="cassa-kpi-label">🍟 FRITTI</div>
+              <div className="cassa-kpi-value">{totals.fritti.toFixed(0)}€</div>
+              <div className="cassa-kpi-sub">{totals.totale > 0 ? Math.round(totals.fritti / totals.totale * 100) + "%" : "—"}</div>
+            </div>
+            <div className="cassa-kpi bar">
+              <div className="cassa-kpi-label">🍺 BAR</div>
+              <div className="cassa-kpi-value">{totals.bar.toFixed(0)}€</div>
+              <div className="cassa-kpi-sub">{totals.totale > 0 ? Math.round(totals.bar / totals.totale * 100) + "%" : "—"}</div>
+            </div>
+          </div>
+
+          {filteredOrders.length === 0 && (
+            <div className="cassa-empty">
+              <div className="empty-icon">🌙</div>
+              <h3>Nessuno scontrino per questa serata</h3>
+              <p>Selezione: {selectedDate === "today" ? isoToLabel(todayISO) : selectedDate === "ALL" ? "Tutte le serate" : isoToLabel(selectedDate)}</p>
+            </div>
+          )}
+
+          {filteredOrders.length > 0 && (
+            <>
+              {/* GRAFICO ORARIO */}
+              <div className="cassa-section">
+                <div className="cassa-section-head">
+                  <span>Vendite per ora</span>
+                </div>
+                <div className="cassa-section-body">
+                  <div className="hourly-chart">
+                    <div className="hourly-bars">
+                      {hourlyData.map(h => (
+                        <div
+                          key={h.hour}
+                          className="hourly-bar"
+                          style={{ height: ((h.value / maxHourly) * 100) + "%" }}
+                          title={h.hour + ":00 — " + h.value.toFixed(0) + "€"}
+                        >
+                          {h.value > 0 && <span className="bar-value">{h.value.toFixed(0)}€</span>}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="hourly-labels">
+                      {hourlyData.map(h => (
+                        <div key={h.hour} className="hourly-label">{h.hour}:00</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* TOP PRODOTTI */}
+              <div className="cassa-section">
+                <div className="cassa-section-head">
+                  <span>Top prodotti venduti</span>
+                  <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, opacity:0.7}}>{topProducts.length} ARTICOLI</span>
+                </div>
+                <div className="cassa-section-body">
+                  <div className="top-products">
+                    {topProducts.map((p, i) => (
+                      <div key={p.name} className={"top-product-row " + (i < 3 ? "top-" + (i + 1) : "")}>
+                        <div className="rank">{i + 1}</div>
+                        <div>
+                          <div className="name">{p.name}</div>
+                          {p.cat && <div className="cat-tag">{p.cat}</div>}
+                        </div>
+                        <div>
+                          <span className="qty">{p.qty}</span>
+                          <span className="qty-unit"> pz</span>
+                        </div>
+                        <div className="revenue">{p.revenue.toFixed(0)}€</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* STORICO SCONTRINI */}
+              <div className="cassa-section">
+                <div className="cassa-section-head">
+                  <span>Scontrini</span>
+                  <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, opacity:0.7}}>{filteredOrders.length} SCONTRINI · DAL PIÙ RECENTE</span>
+                </div>
+                <div className="cassa-section-body">
+                  <div className="receipts-list">
+                    {reverseFilteredOrders.map((o) => {
+                      const centroKey = getCentroKey(o.centro);
+                      const d = parseCassaProDate(o.date);
+                      const timeStr = d ? d.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"}) : "—";
+                      const isExpanded = expandedReceipt === o._key;
+                      return (
+                        <div
+                          key={o._key}
+                          className={"receipt-row " + (isExpanded ? "expanded" : "")}
+                          onClick={() => setExpandedReceipt(isExpanded ? null : o._key)}
+                        >
+                          <div className="receipt-row-head">
+                            <span className="receipt-num">#{String(o.id || "?").padStart(4, "0")}</span>
+                            <span className={"receipt-centro " + centroKey}>{o.centro || "—"}</span>
+                            <span className="receipt-time">{timeStr}</span>
+                            <span className="receipt-pay">{o.pay || "—"}</span>
+                            <span className="receipt-total">{(parseFloat(o.total) || 0).toFixed(0)}€</span>
+                          </div>
+                          {isExpanded && (
+                            <ul className="receipt-items">
+                              {(o.items || []).map((it, j) => (
+                                <li key={j}>
+                                  <span className="item-name">{it.qty}× {it.name}</span>
+                                  <span>{((parseFloat(it.price) || 0) * (parseFloat(it.qty) || 0)).toFixed(2)}€</span>
+                                </li>
+                              ))}
+                              {o.disc > 0 && (
+                                <li style={{borderTop:"1px dashed var(--ink)", marginTop:6, paddingTop:6}}>
+                                  <span className="item-name">Sconto {o.disc}%</span>
+                                  <span>-{(parseFloat(o.discAmt) || 0).toFixed(2)}€</span>
+                                </li>
+                              )}
+                              {o.table && (
+                                <li style={{fontStyle:"italic"}}>
+                                  <span className="item-name">Tavolo: {o.table}</span>
+                                  <span></span>
+                                </li>
+                              )}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </>
   );
 }
 
