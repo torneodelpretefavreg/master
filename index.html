@@ -3544,8 +3544,9 @@ function InsuranceView({ insurance, setInsurance, showToast }) {
   };
 
   const insuredCount = list.filter(r => r.insured).length;
+  const toInsureCount = list.length - insuredCount;
   const cost = parseFloat(costPer) || 0;
-  const totalCost = list.length * cost;
+  const totalCost = toInsureCount * cost;
 
   const exportExcel = () => {
     if (list.length === 0) { alert("Nessun dato da esportare."); return; }
@@ -3558,8 +3559,9 @@ function InsuranceView({ insurance, setInsurance, showToast }) {
       rows.push([]);
       rows.push(["TOTALE PERSONE", list.length]);
       rows.push(["GIÀ ASSICURATE", insuredCount]);
+      rows.push(["DA ASSICURARE", toInsureCount]);
       rows.push(["COSTO A PERSONA (€)", cost]);
-      rows.push(["SPESA TOTALE (€)", totalCost]);
+      rows.push(["SPESA (SOLO DA ASSICURARE) (€)", totalCost]);
       downloadExcel([{ name: "Dati assicurazioni", rows }], "TdP-assicurazioni-" + new Date().toISOString().slice(0, 10) + ".xlsx");
       showToast("Excel assicurazioni esportato");
     } catch (e) { alert("Errore export: " + e.message); }
@@ -3582,12 +3584,12 @@ function InsuranceView({ insurance, setInsurance, showToast }) {
       <div className="data-summary">
         <div className="ds-item"><div className="ds-label">Persone</div><div className="ds-value">{list.length}</div></div>
         <div className="ds-item"><div className="ds-label">Già assicurate</div><div className="ds-value">{insuredCount}</div></div>
-        <div className="ds-item"><div className="ds-label">Da assicurare</div><div className="ds-value">{list.length - insuredCount}</div></div>
+        <div className="ds-item"><div className="ds-label">Da assicurare</div><div className="ds-value">{toInsureCount}</div></div>
         <div className="ds-item">
           <div className="ds-label">Costo a persona (€)</div>
           <input value={costPer} onChange={e => setCost(e.target.value)} style={{width:70, fontSize:18, padding:"4px 8px", fontFamily:"'Bebas Neue', sans-serif"}} />
         </div>
-        <div className="ds-item"><div className="ds-label">Spesa totale</div><div className="ds-value">{totalCost.toFixed(0)}<span className="ds-unit">€</span></div></div>
+        <div className="ds-item"><div className="ds-label">Spesa (solo da assicurare)</div><div className="ds-value">{totalCost.toFixed(0)}<span className="ds-unit">€</span></div></div>
       </div>
 
       {list.length === 0 ? (
