@@ -445,6 +445,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
 <script type="text/babel" data-presets="env,react">
 const { useState, useEffect, useMemo, useRef } = React;
@@ -1221,6 +1223,61 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
     showToast("Importate " + parsedTeams.length + " squadre, " + totalPlayers + " giocatori");
   };
 
+  // Assegna automaticamente le posizioni di sorteggio (1-4) alle squadre in ogni girone
+  // - Non sovrascrive le posizioni già assegnate
+  // - Le squadre senza posizione vengono assegnate in ordine di creazione (primo arrivato = pos 1)
+  // - Salta le posizioni già occupate
+  const autoAssignSeedingPositions = () => {
+    // Quante posizioni rimangono libere?
+    let totaleAssegnate = 0;
+    let totaleDaAssegnare = 0;
+    GIRONE_NAMES.forEach(g => {
+      const inG = teams.filter(t => t.girone === g);
+      const conPos = inG.filter(t => t.seedingPosition);
+      const senzaPos = inG.filter(t => !t.seedingPosition);
+      totaleDaAssegnare += senzaPos.length;
+    });
+
+    if (totaleDaAssegnare === 0) {
+      alert("Tutte le squadre hanno già una posizione assegnata. Nessuna modifica.");
+      return;
+    }
+
+    if (!confirm("Assegnare automaticamente le posizioni a " + totaleDaAssegnare + " squadre? Le posizioni già assegnate non verranno toccate.")) return;
+
+    // Per ogni girone, trova le posizioni libere e assegnale alle squadre senza posizione
+    // (in ordine di creazione = ordine in array teams)
+    const updates = {}; // teamId -> nuovaPosizione
+    GIRONE_NAMES.forEach(g => {
+      const inG = teams.filter(t => t.girone === g);
+      const conPos = inG.filter(t => t.seedingPosition);
+      const posOccupate = new Set(conPos.map(t => t.seedingPosition));
+      const posLibere = [1, 2, 3, 4].filter(p => !posOccupate.has(p));
+
+      const senzaPos = inG.filter(t => !t.seedingPosition);
+      // L'ordine è già quello di creazione perché `teams` è un array e `filter` lo preserva
+      senzaPos.forEach((team, idx) => {
+        if (idx < posLibere.length) {
+          updates[team.id] = posLibere[idx];
+        }
+      });
+    });
+
+    // Applica gli aggiornamenti
+    const newTeams = teams.map(t => {
+      if (updates[t.id]) {
+        return Object.assign({}, t, { seedingPosition: updates[t.id] });
+      }
+      return t;
+    });
+    setTeams(newTeams);
+    showToast("Assegnate " + Object.keys(updates).length + " posizioni");
+  };
+
+  // Statistiche per banner di avviso
+  const squadreConGirone = teams.filter(t => t.girone).length;
+  const squadreSenzaPos = teams.filter(t => t.girone && !t.seedingPosition).length;
+
   return (
     <>
       <div className="section-head">
@@ -1231,12 +1288,43 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
         {canEdit && (
           <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
             <button className="btn btn-gold" onClick={() => setImportOpen(true)}>📊 Importa Excel</button>
+            {squadreSenzaPos > 0 && (
+              <button className="btn" onClick={autoAssignSeedingPositions} title="Assegna automaticamente le posizioni di sorteggio in base all'ordine di creazione">
+                ⚡ Auto-assegna posizioni
+              </button>
+            )}
             <button className="btn btn-primary" onClick={() => setEditing({ id: null, name: "", captain: "", contact: "", girone: "", color: "#1a5d3a", players: [] })}>
               + Nuova squadra
             </button>
           </div>
         )}
       </div>
+
+      {/* BANNER AVVISO: posizioni mancanti */}
+      {canEdit && squadreSenzaPos > 0 && (
+        <div style={{
+          padding: "14px 18px",
+          background: "rgba(232,185,72,0.15)",
+          border: "1.5px solid var(--gold-deep)",
+          borderRadius: 3,
+          marginBottom: 20,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap"
+        }}>
+          <div>
+            <strong>⚠ {squadreSenzaPos} squadre senza posizione sorteggio</strong>
+            <div style={{fontSize: 13, color: "var(--ink-soft)", marginTop: 4}}>
+              Il calendario non può abbinare gli A1/A2/B1/B2... finché ogni squadra in un girone non ha una posizione (1-4).
+            </div>
+          </div>
+          <button className="btn btn-gold" onClick={autoAssignSeedingPositions}>
+            ⚡ Assegna automaticamente
+          </button>
+        </div>
+      )}
 
       <div style={{display:"flex", gap:8, marginBottom: 24, flexWrap:"wrap"}}>
         <button className={"btn btn-sm " + (filter==="ALL"?"btn-gold":"")} onClick={()=>setFilter("ALL")}>Tutte ({teams.length})</button>
@@ -1966,6 +2054,147 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
     showToast("Date/orari ripristinati");
   };
 
+  // Helpers per costruire le righe export
+  const buildExportRows = () => {
+    // Ordina per data + ora
+    const ordered = matchesFromTemplate.slice().sort((a, b) => {
+      const ad = (a.date || "9999") + " " + (a.time || "99:99");
+      const bd = (b.date || "9999") + " " + (b.time || "99:99");
+      return ad.localeCompare(bd);
+    });
+    return ordered.map(m => {
+      const homeT = m.slotHome ? resolveSlot(m.slotHome, teams, matchesFromTemplate) : null;
+      const awayT = m.slotAway ? resolveSlot(m.slotAway, teams, matchesFromTemplate) : null;
+      const homeLabel = homeT ? homeT.name : (m.slotHome ? slotLabel(m.slotHome, teams, matchesFromTemplate) : "?");
+      const awayLabel = awayT ? awayT.name : (m.slotAway ? slotLabel(m.slotAway, teams, matchesFromTemplate) : "?");
+      const td = TOURNAMENT_DATES.find(d => d.iso === m.date);
+      const dateLabel = td ? td.label : (m.date || "—");
+      const phaseLabel = m.phase === "gironi" ? ("Girone " + (m.girone || "?"))
+        : m.phase === "quarti" ? "Quarti"
+        : m.phase === "semi" ? "Semifinale"
+        : m.phase === "finalina" ? "Finalina"
+        : m.phase === "finale_under" ? "Finale Under"
+        : m.phase === "finale" ? "FINALE"
+        : "";
+      const risultato = m.played && m.homeScore != null && m.awayScore != null
+        ? (m.homeScore + " – " + m.awayScore)
+        : "";
+      return {
+        date: m.date || "",
+        dateLabel,
+        time: m.time || "",
+        phase: phaseLabel,
+        home: homeLabel,
+        away: awayLabel,
+        risultato,
+        field: m.field || "",
+      };
+    });
+  };
+
+  const exportCalendarExcel = () => {
+    try {
+      const rows = buildExportRows();
+      const aoa = [["Data", "Orario", "Fase", "Casa", "Trasferta", "Risultato", "Campo"]];
+      rows.forEach(r => {
+        aoa.push([r.dateLabel, r.time, r.phase, r.home, r.away, r.risultato, r.field]);
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      // Imposto larghezza colonne
+      ws["!cols"] = [{wch:14}, {wch:8}, {wch:14}, {wch:30}, {wch:30}, {wch:10}, {wch:12}];
+      XLSX.utils.book_append_sheet(wb, ws, "Calendario");
+      XLSX.writeFile(wb, "TdP-Calendario-" + new Date().toISOString().slice(0,10) + ".xlsx");
+      showToast("Excel esportato");
+    } catch (e) {
+      alert("Errore export Excel: " + e.message);
+    }
+  };
+
+  const exportCalendarPDF = () => {
+    try {
+      if (typeof window.jspdf === 'undefined') {
+        alert("Libreria PDF non caricata. Ricarica la pagina e riprova.");
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      // Header
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Calendario", 14, 18);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 24);
+      doc.setTextColor(0);
+
+      const rows = buildExportRows();
+      // Raggruppo per data
+      const grouped = {};
+      rows.forEach(r => {
+        if (!grouped[r.date]) grouped[r.date] = [];
+        grouped[r.date].push(r);
+      });
+
+      let currentY = 32;
+      Object.keys(grouped).sort().forEach((date) => {
+        const dayRows = grouped[date];
+        const td = TOURNAMENT_DATES.find(d => d.iso === date);
+        const dateLabel = td ? td.label : date;
+        const phase = dayRows[0] && dayRows[0].phase;
+
+        // Verifico se serve una nuova pagina (lascio almeno 30mm di spazio)
+        if (currentY > 250) {
+          doc.addPage();
+          currentY = 18;
+        }
+
+        // Header giornata
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(13, 40, 24); // verde scuro
+        doc.setTextColor(232, 185, 72); // oro
+        doc.rect(14, currentY - 4, 182, 7, "F");
+        doc.text(dateLabel + "  ·  " + phase, 16, currentY + 1);
+        doc.setTextColor(0);
+        currentY += 6;
+
+        // Tabella partite del giorno
+        const tableBody = dayRows.map(r => [
+          r.time,
+          r.home,
+          r.risultato || "vs",
+          r.away,
+          r.field
+        ]);
+        doc.autoTable({
+          startY: currentY,
+          head: [["Ora", "Casa", "", "Trasferta", "Campo"]],
+          body: tableBody,
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 2.5, lineColor: [180,180,180] },
+          headStyles: { fillColor: [240, 234, 199], textColor: [50,50,50], fontStyle: "bold" },
+          columnStyles: {
+            0: { cellWidth: 18, halign: "center", fontStyle: "bold" },
+            1: { cellWidth: 65, halign: "right" },
+            2: { cellWidth: 22, halign: "center", fontStyle: "bold", fillColor: [250, 245, 231] },
+            3: { cellWidth: 65, halign: "left" },
+            4: { cellWidth: 18, halign: "center", fontSize: 9 },
+          },
+          margin: { left: 14, right: 14 },
+        });
+        currentY = doc.lastAutoTable.finalY + 6;
+      });
+
+      doc.save("TdP-Calendario-" + new Date().toISOString().slice(0,10) + ".pdf");
+      showToast("PDF esportato");
+    } catch (e) {
+      alert("Errore export PDF: " + e.message);
+    }
+  };
+
   const playedCount = matchesFromTemplate.filter(m => m.played).length;
   const totalCount = matchesFromTemplate.length;
 
@@ -1983,9 +2212,13 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
           <h1>Calendario</h1>
           <div className="subtitle">{playedCount} / {totalCount} partite giocate</div>
         </div>
-        {canEdit && (
-          <button className="btn btn-sm" onClick={resetAllDates} title="Ripristina date originali">↺ Reset date</button>
-        )}
+        <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+          <button className="btn btn-sm btn-gold" onClick={exportCalendarPDF} title="Esporta calendario in PDF">📄 PDF</button>
+          <button className="btn btn-sm btn-gold" onClick={exportCalendarExcel} title="Esporta calendario in Excel">📊 Excel</button>
+          {canEdit && (
+            <button className="btn btn-sm" onClick={resetAllDates} title="Ripristina date originali">↺ Reset date</button>
+          )}
+        </div>
       </div>
 
       <div style={{display:"flex", gap:8, marginBottom: 24, flexWrap:"wrap"}}>
