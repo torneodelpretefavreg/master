@@ -2092,6 +2092,8 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
         dateLabel,
         time: m.time || "",
         phase: phaseLabel,
+        phaseRaw: m.phase || "",
+        girone: m.girone || "",
         home: homeLabel,
         away: awayLabel,
         risultato,
@@ -2102,17 +2104,21 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
 
   const exportCalendarExcel = () => {
     try {
-      const rows = buildExportRows();
-      const aoa = [["Data", "Orario", "Fase", "Casa", "Trasferta", "Risultato", "Campo"]];
+      const rows = buildExportRows().filter(r => r.phaseRaw === "gironi");
+      if (rows.length === 0) {
+        alert("Nessuna partita dei gironi da esportare.");
+        return;
+      }
+      const aoa = [["Data", "Orario", "Girone", "Casa", "Trasferta", "Risultato"]];
       rows.forEach(r => {
-        aoa.push([r.dateLabel, r.time, r.phase, r.home, r.away, r.risultato, r.field]);
+        aoa.push([r.dateLabel, r.time, r.girone, r.home, r.away, r.risultato]);
       });
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       // Imposto larghezza colonne
-      ws["!cols"] = [{wch:14}, {wch:8}, {wch:14}, {wch:30}, {wch:30}, {wch:10}, {wch:12}];
-      XLSX.utils.book_append_sheet(wb, ws, "Calendario");
-      XLSX.writeFile(wb, "TdP-Calendario-" + new Date().toISOString().slice(0,10) + ".xlsx");
+      ws["!cols"] = [{wch:14}, {wch:8}, {wch:8}, {wch:30}, {wch:30}, {wch:10}];
+      XLSX.utils.book_append_sheet(wb, ws, "Gironi");
+      XLSX.writeFile(wb, "TdP-Calendario-Gironi-" + new Date().toISOString().slice(0,10) + ".xlsx");
       showToast("Excel esportato");
     } catch (e) {
       alert("Errore export Excel: " + e.message);
@@ -2131,14 +2137,19 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
       // Header
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.text("Torneo del Prete 2026 — Calendario", 14, 18);
+      doc.text("Torneo del Prete 2026 — Calendario Gironi", 14, 18);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100);
       doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 24);
       doc.setTextColor(0);
 
-      const rows = buildExportRows();
+      // Solo partite della fase a gironi (quarti/semi/finali non ancora determinati)
+      const rows = buildExportRows().filter(r => r.phaseRaw === "gironi");
+      if (rows.length === 0) {
+        alert("Nessuna partita dei gironi da esportare.");
+        return;
+      }
       // Raggruppo per data
       const grouped = {};
       rows.forEach(r => {
@@ -2151,7 +2162,6 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
         const dayRows = grouped[date];
         const td = TOURNAMENT_DATES.find(d => d.iso === date);
         const dateLabel = td ? td.label : date;
-        const phase = dayRows[0] && dayRows[0].phase;
 
         // Verifico se serve una nuova pagina (lascio almeno 30mm di spazio)
         if (currentY > 250) {
@@ -2159,44 +2169,44 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
           currentY = 18;
         }
 
-        // Header giornata
+        // Header giornata (solo data: nella stessa serata giocano gironi diversi)
         doc.setFontSize(13);
         doc.setFont("helvetica", "bold");
         doc.setFillColor(13, 40, 24); // verde scuro
         doc.setTextColor(232, 185, 72); // oro
         doc.rect(14, currentY - 4, 182, 7, "F");
-        doc.text(dateLabel + "  ·  " + phase, 16, currentY + 1);
+        doc.text(dateLabel, 16, currentY + 1);
         doc.setTextColor(0);
         currentY += 6;
 
-        // Tabella partite del giorno
+        // Tabella partite del giorno — il girone è indicato per singola partita
         const tableBody = dayRows.map(r => [
+          r.girone,
           r.time,
           r.home,
           r.risultato || "vs",
-          r.away,
-          r.field
+          r.away
         ]);
         doc.autoTable({
           startY: currentY,
-          head: [["Ora", "Casa", "", "Trasferta", "Campo"]],
+          head: [["Gir.", "Ora", "Casa", "", "Trasferta"]],
           body: tableBody,
           theme: "grid",
           styles: { fontSize: 10, cellPadding: 2.5, lineColor: [180,180,180] },
           headStyles: { fillColor: [240, 234, 199], textColor: [50,50,50], fontStyle: "bold" },
           columnStyles: {
-            0: { cellWidth: 18, halign: "center", fontStyle: "bold" },
-            1: { cellWidth: 65, halign: "right" },
-            2: { cellWidth: 22, halign: "center", fontStyle: "bold", fillColor: [250, 245, 231] },
-            3: { cellWidth: 65, halign: "left" },
-            4: { cellWidth: 18, halign: "center", fontSize: 9 },
+            0: { cellWidth: 14, halign: "center", fontStyle: "bold", fillColor: [13, 40, 24], textColor: [232, 185, 72] },
+            1: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+            2: { cellWidth: 66, halign: "right" },
+            3: { cellWidth: 20, halign: "center", fontStyle: "bold", fillColor: [250, 245, 231] },
+            4: { cellWidth: 66, halign: "left" },
           },
           margin: { left: 14, right: 14 },
         });
         currentY = doc.lastAutoTable.finalY + 6;
       });
 
-      doc.save("TdP-Calendario-" + new Date().toISOString().slice(0,10) + ".pdf");
+      doc.save("TdP-Calendario-Gironi-" + new Date().toISOString().slice(0,10) + ".pdf");
       showToast("PDF esportato");
     } catch (e) {
       alert("Errore export PDF: " + e.message);
