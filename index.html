@@ -196,7 +196,6 @@
   .shifts-matrix tbody td.date-cell .date-note { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.04em; margin-top: 4px; }
   .shifts-matrix tbody td.date-cell .date-phase { display: inline-block; margin-top: 4px; padding: 1px 6px; background: var(--gold); color: var(--ink); border-radius: 2px; font-family: 'Bebas Neue', sans-serif; font-size: 10px; letter-spacing: 0.1em; }
   .shifts-matrix tbody td.date-cell .date-phase.finali { background: var(--terracotta); color: var(--cream); }
-  .shifts-matrix tbody td.date-cell .date-phase.evento { background: var(--green-bright); color: var(--cream); }
   .shifts-matrix tbody td.shift-cell { padding: 8px; text-align: center; vertical-align: middle; }
   .shifts-matrix tbody td.shift-cell select { font-size: 13px; padding: 6px 8px; min-width: 110px; background: var(--paper); }
   .shifts-matrix tbody td.shift-cell.assigned { background: rgba(45,143,90,0.08); }
@@ -222,42 +221,6 @@
   .shifts-matrix tr.totals-row td.total-cell.zero { color: var(--terracotta); opacity: 0.85; }
   .shifts-matrix tr.totals-row td.total-cell.grand-total { background: var(--gold); color: var(--ink); font-size: 32px; border-left: 2px solid var(--ink); }
   .shifts-matrix tr.totals-row td.totals-label { background: var(--ink); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.08em; text-align: left; padding-left: 14px; }
-
-  /* === AREA STAFF: sub-tabs, disponibilità, tabelle dati === */
-  .staff-subtabs { display: flex; gap: 4px; border-bottom: 1.5px solid var(--ink); margin-bottom: 24px; flex-wrap: wrap; }
-  .staff-subtab { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 0.06em; padding: 12px 22px; background: transparent; border: 1.5px solid transparent; border-bottom: none; cursor: pointer; color: var(--ink-soft); border-radius: 4px 4px 0 0; margin-bottom: -1.5px; display: inline-flex; align-items: center; gap: 8px; }
-  .staff-subtab:hover { color: var(--ink); }
-  .staff-subtab.active { background: var(--paper); border-color: var(--ink); color: var(--ink); }
-  .staff-subtab .st-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--cream-soft); border: 1px solid var(--ink); border-radius: 10px; padding: 1px 8px; color: var(--ink-soft); }
-  .staff-subtab.active .st-badge { background: var(--gold); color: var(--ink); border-color: var(--gold-deep); }
-
-  .avail-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 10px; margin-left: 8px; }
-  .avail-tag.yes { background: rgba(45,143,90,0.18); color: var(--green-field); border: 1px solid var(--green-bright); }
-  .avail-tag.no  { background: rgba(200,85,61,0.12); color: var(--terracotta-dark); border: 1px solid var(--terracotta); }
-  .date-cell .date-avail { display: inline-block; margin-top: 4px; margin-left: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--green-field); letter-spacing: 0.04em; }
-
-  /* Tabella dati editabile (assicurazioni / maglie) */
-  .data-table-wrap { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 4px; box-shadow: 4px 4px 0 var(--ink); background: var(--paper); margin-bottom: 20px; }
-  table.data-table { width: 100%; border-collapse: collapse; min-width: 760px; }
-  table.data-table thead th { background: var(--green-deep); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 0.06em; padding: 10px 8px; text-align: left; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
-  table.data-table thead th.num { text-align: center; width: 44px; }
-  table.data-table tbody td { border-bottom: 1px solid rgba(22,26,24,0.12); padding: 3px 4px; vertical-align: middle; }
-  table.data-table tbody tr:nth-child(even) td { background: rgba(235,224,199,0.35); }
-  table.data-table tbody td.row-num { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-soft); }
-  table.data-table .cell-input { width: 100%; font-size: 13px; padding: 6px 7px; border: 1.5px solid transparent; background: transparent; border-radius: 2px; }
-  table.data-table .cell-input:hover { border-color: rgba(22,26,24,0.2); }
-  table.data-table .cell-input:focus { border-color: var(--gold); background: var(--paper); outline: none; }
-  table.data-table select.cell-input { cursor: pointer; }
-  table.data-table td.actions { text-align: center; width: 40px; }
-  table.data-table td.actions button { background: none; border: none; cursor: pointer; color: var(--ink-soft); font-size: 15px; opacity: 0.45; padding: 4px; line-height: 1; }
-  table.data-table td.actions button:hover { color: var(--terracotta-dark); opacity: 1; }
-  .data-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-  .data-summary .ds-item { background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px; padding: 10px 16px; box-shadow: 2px 2px 0 var(--ink); }
-  .data-summary .ds-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
-  .data-summary .ds-value { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1; color: var(--green-field); }
-  .data-summary .ds-value .ds-unit { font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; color: var(--ink-soft); margin-left: 4px; }
-  .insured-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-  .insured-toggle input { width: auto; }
 
   /* === MATCH EDITOR - SEZIONE EVENTI === */
   .events-section { border: 1.5px solid var(--ink); border-radius: 4px; background: var(--cream-soft); margin-bottom: 16px; }
@@ -636,59 +599,66 @@ const POINTS_DRAW = 1;
 
 // Date serate torneo 2026 estratte dal foglio Calendario dell'Excel ufficiale
 const TOURNAMENT_DATES = [
-  { iso: "2026-06-22", label: "Lun 22 giu", note: "A1-A2 / B1-B2 / C1-C2", phase: "Gironi" },
-  { iso: "2026-06-24", label: "Mer 24 giu", note: "D1-D2 / A3-A4 / B3-B4", phase: "Gironi" },
-  { iso: "2026-06-26", label: "Ven 26 giu", note: "C3-C4 / D3-D4 / A1-A3", phase: "Gironi" },
-  { iso: "2026-06-28", label: "Dom 28 giu", note: "B1-B3 / C1-C3 / D1-D3", phase: "Gironi" },
-  { iso: "2026-06-29", label: "Lun 29 giu", note: "A2-A4 / B2-B4 / C2-C4", phase: "Gironi" },
-  { iso: "2026-07-01", label: "Mer 1 lug", note: "D2-D4 / A1-A4 / B1-B4", phase: "Gironi" },
-  { iso: "2026-07-06", label: "Lun 6 lug", note: "C1-C4 / D1-D4 / A2-A3", phase: "Gironi" },
-  { iso: "2026-07-08", label: "Mer 8 lug", note: "B2-B3 / C2-C3 / D2-D3", phase: "Gironi" },
-  { iso: "2026-07-10", label: "Ven 10 lug", note: "Semi Under / 1A-2B / 1C-2D", phase: "Finali" },
-  { iso: "2026-07-12", label: "Dom 12 lug", note: "Semi Under / 1D-2C / 1B-2A", phase: "Finali" },
-  { iso: "2026-07-15", label: "Mer 15 lug", note: "Vincenti 12-7 (semifinali)", phase: "Finali" },
-  { iso: "2026-07-17", label: "Ven 17 lug", note: "Finalina / Finale Under / Finale", phase: "Finali" },
+  { iso: "2026-06-22", label: "Lun 22 giu", phase: "Gironi" },
+  { iso: "2026-06-24", label: "Mer 24 giu", phase: "Gironi" },
+  { iso: "2026-06-26", label: "Ven 26 giu", phase: "Gironi" },
+  { iso: "2026-06-28", label: "Dom 28 giu", phase: "Gironi" },
+  { iso: "2026-06-29", label: "Lun 29 giu", phase: "Gironi" },
+  { iso: "2026-07-01", label: "Mer 1 lug", phase: "Gironi" },
+  { iso: "2026-07-06", label: "Lun 6 lug", phase: "Gironi" },
+  { iso: "2026-07-08", label: "Mer 8 lug", phase: "Gironi" },
+  { iso: "2026-07-10", label: "Ven 10 lug", phase: "Quarti" },
+  { iso: "2026-07-12", label: "Dom 12 lug", phase: "Quarti" },
+  { iso: "2026-07-15", label: "Mer 15 lug", phase: "Semifinali" },
+  { iso: "2026-07-17", label: "Ven 17 lug", phase: "Finali" },
 ];
 
-// Helper date in italiano (per import Sondaggio e date evento extra)
-const MESI_IT = { gennaio:0, febbraio:1, marzo:2, aprile:3, maggio:4, giugno:5, luglio:6, agosto:7, settembre:8, ottobre:9, novembre:10, dicembre:11 };
-const MESI_IT_SHORT = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
-const GIORNI_IT_SHORT = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
-
-// "LUNEDI 22 GIUGNO" / "SABATO 18 LUGLIO (FESTA FINALE)" -> "2026-06-22"
-function parseItalianEventDate(str, year) {
-  if (!str) return null;
-  year = year || 2026;
-  const s = String(str).toLowerCase();
-  const m = s.match(/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/);
-  if (!m) return null;
-  const day = parseInt(m[1], 10);
-  const month = MESI_IT[m[2]];
-  if (month == null || isNaN(day)) return null;
-  return year + "-" + String(month + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
-}
-
-// "2026-07-18" -> "Sab 18 lug"
-function isoToLabel(iso) {
-  if (!iso) return "";
-  const d = new Date(iso + "T00:00:00");
-  if (isNaN(d.getTime())) return iso;
-  return GIORNI_IT_SHORT[d.getDay()] + " " + d.getDate() + " " + MESI_IT_SHORT[d.getMonth()];
-}
-
-// Converte un valore cella (Date | numero seriale Excel | stringa) in stringa data leggibile gg/mm/aaaa
-function cellToDateStr(v) {
-  if (v == null) return "";
-  if (v instanceof Date && !isNaN(v.getTime())) {
-    return String(v.getDate()).padStart(2,"0") + "/" + String(v.getMonth()+1).padStart(2,"0") + "/" + v.getFullYear();
-  }
-  if (typeof v === "number") {
-    const epoch = new Date(Date.UTC(1899, 11, 30));
-    const d = new Date(epoch.getTime() + v * 86400000);
-    return String(d.getUTCDate()).padStart(2,"0") + "/" + String(d.getUTCMonth()+1).padStart(2,"0") + "/" + d.getUTCFullYear();
-  }
-  return String(v).trim();
-}
+// Template ufficiale partite dal calendario 2026 (33 totali: 24 gironi + 4 quarti + 2 semi + 3 finali)
+// Format home/away:
+//   - "A1"-"D4" = posizione di seeding nel girone (assegnata da Admin)
+//   - "1A"-"2D" = piazzamento classifica girone (1° o 2° posto)
+//   - "VQ1"-"VQ4" = vincenti dei quarti
+//   - "PS1"/"PS2" = perdenti semifinali (finalina); "VS1"/"VS2" = vincenti semi (finale)
+//   - "VU1"/"VU2" = vincenti torneo under
+const TOURNAMENT_MATCHES_TEMPLATE = [
+  // Fase gironi (24 partite)
+  { date: "2026-06-22", time: "20:00", home: "A1", away: "A2", phase: "gironi" },
+  { date: "2026-06-22", time: "21:00", home: "B1", away: "B2", phase: "gironi" },
+  { date: "2026-06-22", time: "22:00", home: "C1", away: "C2", phase: "gironi" },
+  { date: "2026-06-24", time: "20:00", home: "D1", away: "D2", phase: "gironi" },
+  { date: "2026-06-24", time: "21:00", home: "A3", away: "A4", phase: "gironi" },
+  { date: "2026-06-24", time: "22:00", home: "B3", away: "B4", phase: "gironi" },
+  { date: "2026-06-26", time: "20:00", home: "C3", away: "C4", phase: "gironi" },
+  { date: "2026-06-26", time: "21:00", home: "D3", away: "D4", phase: "gironi" },
+  { date: "2026-06-26", time: "22:00", home: "A1", away: "A3", phase: "gironi" },
+  { date: "2026-06-28", time: "20:00", home: "B1", away: "B3", phase: "gironi" },
+  { date: "2026-06-28", time: "21:00", home: "C1", away: "C3", phase: "gironi" },
+  { date: "2026-06-28", time: "22:00", home: "D1", away: "D3", phase: "gironi" },
+  { date: "2026-06-29", time: "20:00", home: "A2", away: "A4", phase: "gironi" },
+  { date: "2026-06-29", time: "21:00", home: "B2", away: "B4", phase: "gironi" },
+  { date: "2026-06-29", time: "22:00", home: "C2", away: "C4", phase: "gironi" },
+  { date: "2026-07-01", time: "20:00", home: "D2", away: "D4", phase: "gironi" },
+  { date: "2026-07-01", time: "21:00", home: "A1", away: "A4", phase: "gironi" },
+  { date: "2026-07-01", time: "22:00", home: "B1", away: "B4", phase: "gironi" },
+  { date: "2026-07-06", time: "20:00", home: "C1", away: "C4", phase: "gironi" },
+  { date: "2026-07-06", time: "21:00", home: "D1", away: "D4", phase: "gironi" },
+  { date: "2026-07-06", time: "22:00", home: "A2", away: "A3", phase: "gironi" },
+  { date: "2026-07-08", time: "20:00", home: "B2", away: "B3", phase: "gironi" },
+  { date: "2026-07-08", time: "21:00", home: "C2", away: "C3", phase: "gironi" },
+  { date: "2026-07-08", time: "22:00", home: "D2", away: "D3", phase: "gironi" },
+  // Quarti finali (4 partite)
+  { date: "2026-07-10", time: "21:00", home: "1A", away: "2B", phase: "quarti" },
+  { date: "2026-07-10", time: "22:00", home: "1C", away: "2D", phase: "quarti" },
+  { date: "2026-07-12", time: "21:00", home: "1D", away: "2C", phase: "quarti" },
+  { date: "2026-07-12", time: "22:00", home: "1B", away: "2A", phase: "quarti" },
+  // Semifinali (vincenti quarti — abbinamento manuale tra parentesi)
+  { date: "2026-07-15", time: "21:00", home: "V_Q1", away: "V_Q2", phase: "semi" },
+  { date: "2026-07-15", time: "22:00", home: "V_Q3", away: "V_Q4", phase: "semi" },
+  // Finali
+  { date: "2026-07-17", time: "20:30", home: "P_S1", away: "P_S2", phase: "finalina" },
+  { date: "2026-07-17", time: "21:30", home: "U1", away: "U2", phase: "finale_under" },
+  { date: "2026-07-17", time: "22:30", home: "V_S1", away: "V_S2", phase: "finale" },
+];
 
 // Posizioni di default modificabili da admin
 const DEFAULT_POSITIONS = [
@@ -780,6 +750,109 @@ function computeStandings(teams, matches) {
   return Object.values(stats).sort((x, y) =>
     y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.name.localeCompare(y.name)
   );
+}
+
+// Calcola le classifiche di tutti e 4 i gironi in una mappa { A: [...], B: [...], C: [...], D: [...] }
+function computeAllGironiStandings(teams, matches) {
+  const result = {};
+  GIRONE_NAMES.forEach(g => {
+    const teamsInG = teams.filter(t => t.girone === g);
+    const matchesInG = matches.filter(m => m.girone === g);
+    result[g] = computeStandings(teamsInG, matchesInG);
+  });
+  return result;
+}
+
+// Risolve uno "slot" (es. "A1", "1B", "V_Q1") in un teamId reale.
+// teams: array squadre
+// matches: array partite (per leggere risultati e propagare ai turni successivi)
+// allStandings: opzionale, classifiche pre-calcolate
+function resolveSlot(slot, teams, matches, allStandings) {
+  if (!slot) return null;
+  // Pattern "A1"-"D4" = seedingPosition nel girone
+  const seedMatch = /^([A-D])([1-4])$/.exec(slot);
+  if (seedMatch) {
+    const girone = seedMatch[1];
+    const pos = parseInt(seedMatch[2], 10);
+    const team = teams.find(t => t.girone === girone && t.seedingPosition === pos);
+    return team || null;
+  }
+  // Pattern "1A"-"2D" = piazzamento classifica (1°/2° posto)
+  const classMatch = /^([12])([A-D])$/.exec(slot);
+  if (classMatch) {
+    const pos = parseInt(classMatch[1], 10);
+    const girone = classMatch[2];
+    const standings = (allStandings && allStandings[girone]) || computeStandings(
+      teams.filter(t => t.girone === girone),
+      matches.filter(m => m.girone === girone)
+    );
+    if (standings.length >= pos) {
+      const teamId = standings[pos - 1].teamId;
+      return teams.find(t => t.id === teamId) || null;
+    }
+    return null;
+  }
+  // Pattern "V_Q1"-"V_Q4" = vincente quarto N (incrocio per semifinali)
+  // V_Q1 = vincente match quarti #1 (10/07 21:00, 1A vs 2B)
+  // V_Q2 = vincente match quarti #2 (10/07 22:00, 1C vs 2D)
+  // V_Q3 = vincente match quarti #3 (12/07 21:00, 1D vs 2C)
+  // V_Q4 = vincente match quarti #4 (12/07 22:00, 1B vs 2A)
+  const winnerMatch = /^V_Q([1-4])$/.exec(slot);
+  if (winnerMatch) {
+    const qNum = parseInt(winnerMatch[1], 10);
+    const quartiSlot = [
+      { date: "2026-07-10", time: "21:00" },
+      { date: "2026-07-10", time: "22:00" },
+      { date: "2026-07-12", time: "21:00" },
+      { date: "2026-07-12", time: "22:00" },
+    ][qNum - 1];
+    if (!quartiSlot) return null;
+    const m = matches.find(mm => mm.date === quartiSlot.date && mm.time === quartiSlot.time && mm.phase === "quarti");
+    if (!m || !m.played || m.homeScore == null || m.awayScore == null) return null;
+    if (m.homeScore > m.awayScore) {
+      return resolveSlot(m.slotHome, teams, matches, allStandings);
+    } else if (m.awayScore > m.homeScore) {
+      return resolveSlot(m.slotAway, teams, matches, allStandings);
+    }
+    return null;
+  }
+  // Pattern "V_S1"/"V_S2" = vincenti semifinali
+  // "P_S1"/"P_S2" = perdenti semifinali
+  const semiMatch = /^([VP])_S([12])$/.exec(slot);
+  if (semiMatch) {
+    const which = semiMatch[1]; // V o P
+    const sNum = parseInt(semiMatch[2], 10);
+    const semiSlot = [
+      { date: "2026-07-15", time: "21:00" },
+      { date: "2026-07-15", time: "22:00" },
+    ][sNum - 1];
+    if (!semiSlot) return null;
+    const m = matches.find(mm => mm.date === semiSlot.date && mm.time === semiSlot.time && mm.phase === "semi");
+    if (!m || !m.played || m.homeScore == null || m.awayScore == null) return null;
+    const winner = m.homeScore > m.awayScore ? m.slotHome : m.slotAway;
+    const loser = m.homeScore > m.awayScore ? m.slotAway : m.slotHome;
+    return resolveSlot(which === "V" ? winner : loser, teams, matches, allStandings);
+  }
+  // "U1"/"U2" = finalisti under (placeholder, da gestire a mano)
+  return null;
+}
+
+// Versione "display-friendly" che restituisce il nome o un placeholder leggibile
+function slotLabel(slot, teams, matches, allStandings) {
+  const team = resolveSlot(slot, teams, matches, allStandings);
+  if (team) return team.name;
+  // Placeholder leggibili
+  if (/^[A-D][1-4]$/.test(slot)) return slot.charAt(0) + " " + slot.charAt(1) + "ª pos.";
+  if (/^[12][A-D]$/.test(slot)) {
+    const pos = slot.charAt(0);
+    const g = slot.charAt(1);
+    return pos + (pos === "1" ? "° " : "° ") + g;
+  }
+  if (/^V_Q[1-4]$/.test(slot)) return "Vinc. Q" + slot.slice(-1);
+  if (/^V_S[12]$/.test(slot)) return "Vinc. SF" + slot.slice(-1);
+  if (/^P_S[12]$/.test(slot)) return "Perd. SF" + slot.slice(-1);
+  if (/^U[12]$/.test(slot)) return "Under " + slot.slice(-1);
+  return slot;
 }
 
 // Excel parser - identifica le squadre tramite il COLORE arancione (FFE699) della cella B
@@ -899,9 +972,6 @@ function App() {
   const [staff, setStaff] = useFirebaseValue(fb.db, "staff", []);
   const [positions, setPositions] = useFirebaseValue(fb.db, "positions", DEFAULT_POSITIONS);
   const [shifts, setShifts] = useFirebaseValue(fb.db, "shifts", {});
-  const [availability, setAvailability] = useFirebaseValue(fb.db, "availability", {});
-  const [insurance, setInsurance] = useFirebaseValue(fb.db, "insurance", []);
-  const [jerseys, setJerseys] = useFirebaseValue(fb.db, "jerseys", []);
   const [inventory, setInventory] = useFirebaseValue(fb.db, "inventory", []);
   // Quote pagamenti (modificabili da Admin)
   const [quoteConfig, setQuoteConfig] = useFirebaseValue(fb.db, "quoteConfig", {
@@ -922,20 +992,23 @@ function App() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
   const setRolePersistent = (r) => { setRole(r); localStorage.setItem("tdp.role", r); };
 
+  // Genera il calendario dal template ufficiale 2026 (33 partite)
+  // I match della fase a gironi vengono abbinati alle squadre tramite seedingPosition
+  // Quelli della fase finali restano "placeholder" e si risolvono runtime tramite la classifica
   const regenerateSchedule = () => {
-    const teamsWithGirone = teams.filter(t => t.girone);
-    if (teamsWithGirone.length === 0) {
-      alert("Nessuna squadra è ancora assegnata a un girone. Assegna prima i gironi nella sezione Squadre.");
-      return;
-    }
-    if (!confirm("Genero il calendario dei gironi? I risultati esistenti verranno persi.")) return;
-    const newMatches = [];
-    GIRONE_NAMES.forEach(g => {
-      const inGirone = teams.filter(t => t.girone === g).map(t => t.id);
-      generateRoundRobin(inGirone).forEach(m => newMatches.push(Object.assign({}, m, { girone: g })));
-    });
+    if (!confirm("Genero il calendario ufficiale 2026? I risultati esistenti verranno persi (squadre, gironi e date restano).")) return;
+    const newMatches = TOURNAMENT_MATCHES_TEMPLATE.map(t => Object.assign({
+      id: uid(),
+      homeScore: null, awayScore: null, played: false,
+      events: [],
+      // Per la fase a gironi, salvo il girone come metadata
+      girone: t.phase === "gironi" ? t.home.charAt(0) : null,
+      // Conserva il "slot" originale per identificare la posizione nel template
+      slotHome: t.home,
+      slotAway: t.away,
+    }, t));
     setMatches(newMatches);
-    showToast("Calendario rigenerato (" + newMatches.length + " partite)");
+    showToast("Calendario ufficiale generato (" + newMatches.length + " partite)");
   };
 
   const canEdit = role === "staff";
@@ -950,7 +1023,7 @@ function App() {
         {view === "gironi" && <GironiView teams={teams} matches={matches} />}
         {view === "calendario" && <CalendarView teams={teams} matches={matches} setMatches={setMatches} canEdit={canEdit} showToast={showToast} />}
         {view === "statistiche" && <StatsView teams={teams} matches={matches} />}
-        {view === "turni" && canEdit && <StaffArea staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} availability={availability} setAvailability={setAvailability} insurance={insurance} setInsurance={setInsurance} jerseys={jerseys} setJerseys={setJerseys} showToast={showToast} />}
+        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} showToast={showToast} />}
         {view === "turni" && !canEdit && (
           <div className="empty">
             <div className="empty-icon">🔒</div>
@@ -1028,7 +1101,7 @@ function Tabs({ view, onChange, canEdit }) {
     { id: "calendario", label: "Calendario" },
     { id: "statistiche", label: "Statistiche" },
     { id: "cassa", label: "Cassa", staffOnly: true },
-    { id: "turni", label: "Staff", staffOnly: true },
+    { id: "turni", label: "Turni", staffOnly: true },
     { id: "inventario", label: "Inventario", staffOnly: true },
     { id: "admin", label: "Admin", staffOnly: true },
   ];
@@ -1252,7 +1325,9 @@ function TeamCard({ team, canEdit, onEdit, onDelete, payment, quotaIscrizione, q
         <div style={{flex:1, minWidth:0}}>
           <h3 style={{wordBreak:"break-word"}}>{team.name}</h3>
           <div className="girone-tag">
-            {team.girone ? "GIRONE " + team.girone : "NESSUN GIRONE"}
+            {team.girone
+              ? "GIRONE " + team.girone + (team.seedingPosition ? " · " + team.seedingPosition + "ª POS." : " · ⚠ POS. DA ASSEGNARE")
+              : "NESSUN GIRONE"}
             {captainPlayer ? " · CAP. " + captainPlayer.name.toUpperCase() : ""}
             {numGiocatori ? " · " + numGiocatori + " GIOC." : ""}
           </div>
@@ -1303,6 +1378,7 @@ function TeamEditor({ team, onSave, onCancel }) {
   const [contact, setContact] = useState(team.contact || "");
   const [color, setColor] = useState(team.color || "#1a5d3a");
   const [girone, setGirone] = useState(team.girone || "");
+  const [seedingPosition, setSeedingPosition] = useState(team.seedingPosition || "");
   const [players, setPlayers] = useState(() => (team.players && team.players.length) ? team.players.map(p => Object.assign({ id: uid() }, p)) : [emptyPlayer()]);
 
   const updatePlayer = (idx, field, value) => {
@@ -1324,18 +1400,20 @@ function TeamEditor({ team, onSave, onCancel }) {
       alert("Aggiungi almeno un giocatore prima di salvare la squadra.");
       return;
     }
+    // Validazione: solo nome e data nascita sono obbligatori (gli altri sono facoltativi)
     const incomplete = nonEmpty.filter(p => validatePlayer(p).length > 0);
     if (incomplete.length > 0) {
       const list = incomplete.map(p => "• " + (p.name || "(senza nome)") + ": manca " + validatePlayer(p).join(", ")).join("\n");
-      alert("⛔ Non puoi salvare: tutti i giocatori devono avere l'anagrafica completa.\n\nGiocatori incompleti:\n\n" + list);
-      return;
+      if (!confirm("Alcuni giocatori hanno campi obbligatori vuoti (nome o data di nascita):\n\n" + list + "\n\nSalvare comunque?")) return;
     }
     const captain = nonEmpty.find(p => p.isCaptain);
     onSave(Object.assign({}, team, {
       name: name.trim(),
       captain: captain ? captain.name : "",
       contact: contact.trim(),
-      color, girone, players: nonEmpty
+      color, girone,
+      seedingPosition: seedingPosition ? parseInt(seedingPosition, 10) : null,
+      players: nonEmpty
     }));
   };
 
@@ -1346,7 +1424,7 @@ function TeamEditor({ team, onSave, onCancel }) {
           <h2>{team.id ? "Modifica squadra" : "Nuova squadra"}</h2>
         </div>
 
-        <div className="form-row" style={{gridTemplateColumns:"2fr 1fr 1fr"}}>
+        <div className="form-row" style={{gridTemplateColumns:"2fr 1fr 1fr 1fr"}}>
           <div>
             <label>Nome squadra <span className="req">*</span></label>
             <input value={name} onChange={e=>setName(e.target.value)} placeholder="Es. AGENZIA IMMOBILIARE METRO QUADRO" />
@@ -1356,6 +1434,16 @@ function TeamEditor({ team, onSave, onCancel }) {
             <select value={girone} onChange={e=>setGirone(e.target.value)}>
               <option value="">— Non assegnato —</option>
               {GIRONE_NAMES.map(g => <option key={g} value={g}>Girone {g}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Pos. sorteggio</label>
+            <select value={seedingPosition} onChange={e=>setSeedingPosition(e.target.value)} disabled={!girone}>
+              <option value="">— Nessuna —</option>
+              <option value="1">1ª {girone || "?"}</option>
+              <option value="2">2ª {girone || "?"}</option>
+              <option value="3">3ª {girone || "?"}</option>
+              <option value="4">4ª {girone || "?"}</option>
             </select>
           </div>
           <div>
@@ -1779,22 +1867,113 @@ function GironiView({ teams, matches }) {
 }
 
 function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
-  const [filter, setFilter] = useState("ALL");
+  const [filter, setFilter] = useState("ALL"); // ALL | gironi | quarti | semi | finali | "YYYY-MM-DD"
   const [editing, setEditing] = useState(null);
-  const filtered = filter === "ALL" ? matches : matches.filter(m => m.girone === filter);
-  const grouped = useMemo(() => {
-    const byG = {};
-    filtered.forEach(m => {
-      if (!byG[m.girone]) byG[m.girone] = [];
-      byG[m.girone].push(m);
+
+  // Genera le partite dal template (usando i ts dei "slot")
+  // Se in matches c'è già una partita con stessa key (date+time+slotHome+slotAway), preserva i suoi dati
+  // Inoltre permette di applicare overrides: data/ora/campo modificati salvati in /matches
+  const matchesFromTemplate = useMemo(() => {
+    return TOURNAMENT_MATCHES_TEMPLATE.map((tmpl, idx) => {
+      // Key stabile per template (per identificare la partita anche se data/ora cambia)
+      const tmplKey = "match_" + tmpl.phase + "_" + idx;
+      // Cerco se c'è una partita salvata con la stessa "id template" o stesso slot+phase
+      const existing = matches.find(m => m.tmplKey === tmplKey)
+                    || matches.find(m => m.slotHome === tmpl.home && m.slotAway === tmpl.away && m.phase === tmpl.phase);
+      if (existing) {
+        // Conservo i dati salvati ma uso i valori del template come default per i campi vuoti
+        return Object.assign({}, existing, {
+          tmplKey,
+          slotHome: tmpl.home,
+          slotAway: tmpl.away,
+          phase: tmpl.phase,
+          girone: tmpl.phase === "gironi" ? tmpl.home.charAt(0) : null,
+          date: existing.date || tmpl.date,
+          time: existing.time || tmpl.time,
+        });
+      }
+      return {
+        id: tmplKey,
+        tmplKey,
+        slotHome: tmpl.home,
+        slotAway: tmpl.away,
+        phase: tmpl.phase,
+        girone: tmpl.phase === "gironi" ? tmpl.home.charAt(0) : null,
+        date: tmpl.date,
+        time: tmpl.time,
+        homeScore: null,
+        awayScore: null,
+        played: false,
+        field: null,
+        events: [],
+      };
     });
-    return byG;
+  }, [matches]);
+
+  // Filtraggio
+  const filtered = useMemo(() => {
+    if (filter === "ALL") return matchesFromTemplate;
+    if (filter === "gironi" || filter === "quarti" || filter === "semi" || filter === "finali") {
+      const phaseSet = filter === "finali" ? ["finalina", "finale_under", "finale"] : [filter];
+      return matchesFromTemplate.filter(m => phaseSet.includes(m.phase));
+    }
+    // Filtro per data ISO
+    return matchesFromTemplate.filter(m => m.date === filter);
+  }, [matchesFromTemplate, filter]);
+
+  // Raggruppo per data (più intuitivo del raggruppamento per girone)
+  const grouped = useMemo(() => {
+    const byDate = {};
+    filtered.forEach(m => {
+      const k = m.date || "no_date";
+      if (!byDate[k]) byDate[k] = [];
+      byDate[k].push(m);
+    });
+    // Ordino le partite di ciascuna data per orario
+    Object.values(byDate).forEach(arr => arr.sort((a, b) => (a.time || "").localeCompare(b.time || "")));
+    return byDate;
   }, [filtered]);
 
+  // Salvataggio: aggiorno il match nel template-resolvable list
   const saveMatch = (updated) => {
-    setMatches(matches.map(m => m.id === updated.id ? updated : m));
+    // Aggiorno l'elenco matches: se esiste già, sostituisco; altrimenti aggiungo
+    const idx = matches.findIndex(m => m.tmplKey === updated.tmplKey || m.id === updated.id);
+    let newMatches;
+    if (idx >= 0) {
+      newMatches = matches.slice();
+      newMatches[idx] = updated;
+    } else {
+      newMatches = [...matches, updated];
+    }
+    setMatches(newMatches);
     setEditing(null);
-    showToast("Risultato salvato");
+    showToast("Partita salvata");
+  };
+
+  // Reset di TUTTI gli override → torna alle date/ore originali del template
+  const resetAllDates = () => {
+    if (!confirm("Ripristinare TUTTE le date/orari originali del calendario? I risultati registrati saranno conservati.")) return;
+    const newMatches = matches.map(m => {
+      // Trovo il template corrispondente
+      const tmplIdx = TOURNAMENT_MATCHES_TEMPLATE.findIndex((t, i) => "match_" + t.phase + "_" + i === m.tmplKey);
+      if (tmplIdx >= 0) {
+        const tmpl = TOURNAMENT_MATCHES_TEMPLATE[tmplIdx];
+        return Object.assign({}, m, { date: tmpl.date, time: tmpl.time, field: null });
+      }
+      return m;
+    });
+    setMatches(newMatches);
+    showToast("Date/orari ripristinati");
+  };
+
+  const playedCount = matchesFromTemplate.filter(m => m.played).length;
+  const totalCount = matchesFromTemplate.length;
+
+  const fasiCount = {
+    gironi: matchesFromTemplate.filter(m => m.phase === "gironi").length,
+    quarti: matchesFromTemplate.filter(m => m.phase === "quarti").length,
+    semi: matchesFromTemplate.filter(m => m.phase === "semi").length,
+    finali: matchesFromTemplate.filter(m => ["finalina","finale_under","finale"].includes(m.phase)).length,
   };
 
   return (
@@ -1802,85 +1981,147 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
       <div className="section-head">
         <div>
           <h1>Calendario</h1>
-          <div className="subtitle">{matches.filter(m=>m.played).length} su {matches.length} partite giocate</div>
+          <div className="subtitle">{playedCount} / {totalCount} partite giocate</div>
         </div>
+        {canEdit && (
+          <button className="btn btn-sm" onClick={resetAllDates} title="Ripristina date originali">↺ Reset date</button>
+        )}
       </div>
 
       <div style={{display:"flex", gap:8, marginBottom: 24, flexWrap:"wrap"}}>
-        <button className={"btn btn-sm " + (filter==="ALL"?"btn-gold":"")} onClick={()=>setFilter("ALL")}>Tutte</button>
-        {GIRONE_NAMES.map(g => (
-          <button key={g} className={"btn btn-sm " + (filter===g?"btn-gold":"")} onClick={()=>setFilter(g)}>Girone {g}</button>
-        ))}
+        <button className={"btn btn-sm " + (filter==="ALL"?"btn-gold":"")} onClick={()=>setFilter("ALL")}>Tutte ({totalCount})</button>
+        <button className={"btn btn-sm " + (filter==="gironi"?"btn-gold":"")} onClick={()=>setFilter("gironi")}>Gironi ({fasiCount.gironi})</button>
+        <button className={"btn btn-sm " + (filter==="quarti"?"btn-gold":"")} onClick={()=>setFilter("quarti")}>Quarti ({fasiCount.quarti})</button>
+        <button className={"btn btn-sm " + (filter==="semi"?"btn-gold":"")} onClick={()=>setFilter("semi")}>Semifinali ({fasiCount.semi})</button>
+        <button className={"btn btn-sm " + (filter==="finali"?"btn-gold":"")} onClick={()=>setFilter("finali")}>Finali ({fasiCount.finali})</button>
       </div>
 
-      {matches.length === 0 && (
-        <div className="empty">
-          <div className="empty-icon">📅</div>
-          <h3>Calendario non generato</h3>
-          <p>Assegna le squadre ai gironi e poi vai in Admin per generarlo.</p>
-        </div>
-      )}
+      {Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([date, ms]) => {
+        const td = TOURNAMENT_DATES.find(d => d.iso === date);
+        const dateLabel = td ? td.label : (date === "no_date" ? "Data da programmare" : date);
+        const phase = ms[0] && ms[0].phase;
+        return (
+          <div key={date} style={{marginBottom: 32}}>
+            <h3 className="display" style={{
+              fontSize:24, marginBottom:14, letterSpacing:"0.06em",
+              color:"var(--green-deep)",
+              display:"flex", alignItems:"baseline", gap:12, flexWrap:"wrap"
+            }}>
+              <span>📅 {dateLabel}</span>
+              <span style={{
+                fontFamily:"'JetBrains Mono', monospace", fontSize:11, color:"var(--gold-deep)",
+                letterSpacing:"0.1em", padding:"2px 8px",
+                background: "rgba(232,185,72,0.18)", border:"1px solid var(--gold-deep)", borderRadius:2
+              }}>
+                {phase === "gironi" ? "FASE GIRONI" : phase === "quarti" ? "QUARTI" : phase === "semi" ? "SEMIFINALI" : "FINALI"}
+              </span>
+              <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color:"var(--ink-soft)", letterSpacing:"0.08em"}}>
+                {ms.length} {ms.length === 1 ? "PARTITA" : "PARTITE"}
+              </span>
+            </h3>
+            {ms.map(m => (
+              <MatchRow key={m.id || m.tmplKey} match={m} teams={teams} allMatches={matchesFromTemplate} onClick={canEdit ? () => setEditing(m) : null} />
+            ))}
+          </div>
+        );
+      })}
 
-      {Object.entries(grouped).map(([g, ms]) => (
-        <div key={g} style={{marginBottom: 32}}>
-          <h3 className="display" style={{fontSize:26, marginBottom:14, letterSpacing:"0.06em", color:"var(--green-deep)"}}>⚽ Girone {g}</h3>
-          {ms.map(m => (
-            <MatchRow key={m.id} match={m} teams={teams} onClick={canEdit ? () => setEditing(m) : null} />
-          ))}
-        </div>
-      ))}
-
-      {editing && <MatchEditor match={editing} teams={teams} onSave={saveMatch} onCancel={()=>setEditing(null)} />}
+      {editing && <MatchEditor match={editing} teams={teams} allMatches={matchesFromTemplate} onSave={saveMatch} onCancel={()=>setEditing(null)} />}
     </>
   );
 }
 
-function MatchRow({ match, teams, onClick, readOnly }) {
-  const homeT = teams.find(t => t.id === match.home);
-  const awayT = teams.find(t => t.id === match.away);
+function MatchRow({ match, teams, allMatches, onClick, readOnly }) {
+  // Risolvi le squadre: prima da slot (nuovo formato), poi da home/away come fallback (vecchio)
+  let homeT = null, awayT = null;
+  let homeLabel = "?", awayLabel = "?";
+  if (match.slotHome) {
+    homeT = resolveSlot(match.slotHome, teams, allMatches || []);
+    homeLabel = homeT ? homeT.name : slotLabel(match.slotHome, teams, allMatches || []);
+  } else if (match.home) {
+    homeT = teams.find(t => t.id === match.home);
+    homeLabel = homeT ? homeT.name : "?";
+  }
+  if (match.slotAway) {
+    awayT = resolveSlot(match.slotAway, teams, allMatches || []);
+    awayLabel = awayT ? awayT.name : slotLabel(match.slotAway, teams, allMatches || []);
+  } else if (match.away) {
+    awayT = teams.find(t => t.id === match.away);
+    awayLabel = awayT ? awayT.name : "?";
+  }
+
+  // Formatta data + ora
+  let dateLabel = "";
+  if (match.date) {
+    const td = TOURNAMENT_DATES.find(d => d.iso === match.date);
+    dateLabel = td ? td.label : match.date;
+    if (match.time) dateLabel += " · " + match.time;
+  }
+
+  // Tag fase (gironi/quarti/semi/finale)
+  const phaseLabel = match.phase === "gironi" ? ("G. " + (match.girone || "?"))
+    : match.phase === "quarti" ? "QUARTI"
+    : match.phase === "semi" ? "SEMI"
+    : match.phase === "finalina" ? "FINALINA"
+    : match.phase === "finale_under" ? "FIN. UNDER"
+    : match.phase === "finale" ? "FINALE"
+    : (match.girone ? "G. " + match.girone : "");
+
   return (
     <div className={"match " + (match.played ? "played" : "")} onClick={onClick} style={{cursor: onClick ? "pointer" : "default"}}>
-      <div className="match-team home">{homeT ? homeT.name : "?"}</div>
+      <div className="match-team home">{homeLabel}</div>
       <div className={"match-score " + (match.played ? "" : "pending")}>
         {match.played ? match.homeScore + " – " + match.awayScore : "VS"}
       </div>
-      <div className="match-team away">{awayT ? awayT.name : "?"}</div>
+      <div className="match-team away">{awayLabel}</div>
       <div className="match-meta">
-        <span className="match-girone">G. {match.girone}</span>
-        <span>{match.date || (match.played ? "GIOCATA" : "DA PROGRAMMARE")}{match.field ? " · " + match.field : ""}</span>
+        <span className="match-girone">{phaseLabel}</span>
+        <span>{dateLabel || (match.played ? "GIOCATA" : "DA PROGRAMMARE")}{match.field ? " · " + match.field : ""}</span>
         {onClick && !readOnly && <span style={{color:"var(--terracotta-dark)", fontWeight:600}}>✎ Modifica</span>}
       </div>
     </div>
   );
 }
 
-function MatchEditor({ match, teams, onSave, onCancel }) {
-  const homeT = teams.find(t => t.id === match.home);
-  const awayT = teams.find(t => t.id === match.away);
+function MatchEditor({ match, teams, allMatches, onSave, onCancel }) {
+  // Risolvi squadre da slot (nuovo) o teamId (legacy)
+  const homeT = match.slotHome
+    ? resolveSlot(match.slotHome, teams, allMatches || [])
+    : teams.find(t => t.id === match.home);
+  const awayT = match.slotAway
+    ? resolveSlot(match.slotAway, teams, allMatches || [])
+    : teams.find(t => t.id === match.away);
+  const homeLabel = homeT ? homeT.name : (match.slotHome ? slotLabel(match.slotHome, teams, allMatches || []) : "?");
+  const awayLabel = awayT ? awayT.name : (match.slotAway ? slotLabel(match.slotAway, teams, allMatches || []) : "?");
+
+  const teamsResolved = !!(homeT && awayT);
+
   const [homeScore, setHomeScore] = useState(match.homeScore != null ? match.homeScore : "");
   const [awayScore, setAwayScore] = useState(match.awayScore != null ? match.awayScore : "");
   const [date, setDate] = useState(match.date || "");
+  const [time, setTime] = useState(match.time || "");
   const [field, setField] = useState(match.field || "");
-  // events: [{ id, playerId, playerName, teamId, type: "goal"|"yellow"|"red", note?: "autogol" }]
   const [events, setEvents] = useState(() => (match.events || []).map(e => ({...e})));
 
-  // Form per aggiungere un evento
-  const [newEventTeam, setNewEventTeam] = useState(match.home);
+  // teamId effettivi (risolti) per gli eventi
+  const homeId = homeT ? homeT.id : match.home;
+  const awayId = awayT ? awayT.id : match.away;
+
+  const [newEventTeam, setNewEventTeam] = useState(homeId || "");
   const [newEventPlayer, setNewEventPlayer] = useState("");
   const [newEventType, setNewEventType] = useState("goal");
   const [newEventNote, setNewEventNote] = useState("");
 
   const homePlayers = (homeT && homeT.players) || [];
   const awayPlayers = (awayT && awayT.players) || [];
-  const eventTeamPlayers = newEventTeam === match.home ? homePlayers : awayPlayers;
+  const eventTeamPlayers = newEventTeam === homeId ? homePlayers : awayPlayers;
 
-  // Conteggi rapidi
-  const homeGoals = events.filter(e => e.type === "goal" && e.teamId === match.home).length;
-  const awayGoals = events.filter(e => e.type === "goal" && e.teamId === match.away).length;
-  const homeYellows = events.filter(e => e.type === "yellow" && e.teamId === match.home).length;
-  const awayYellows = events.filter(e => e.type === "yellow" && e.teamId === match.away).length;
-  const homeReds = events.filter(e => e.type === "red" && e.teamId === match.home).length;
-  const awayReds = events.filter(e => e.type === "red" && e.teamId === match.away).length;
+  const homeGoals = events.filter(e => e.type === "goal" && e.teamId === homeId).length;
+  const awayGoals = events.filter(e => e.type === "goal" && e.teamId === awayId).length;
+  const homeYellows = events.filter(e => e.type === "yellow" && e.teamId === homeId).length;
+  const awayYellows = events.filter(e => e.type === "yellow" && e.teamId === awayId).length;
+  const homeReds = events.filter(e => e.type === "red" && e.teamId === homeId).length;
+  const awayReds = events.filter(e => e.type === "red" && e.teamId === awayId).length;
 
   const addEvent = () => {
     if (!newEventPlayer) { alert("Seleziona un giocatore"); return; }
@@ -1931,7 +2172,7 @@ function MatchEditor({ match, teams, onSave, onCancel }) {
     onSave(Object.assign({}, match, {
       homeScore: hs, awayScore: as,
       played: asPlayed && hs != null && as != null,
-      date: date || null, field: field || null,
+      date: date || null, time: time || null, field: field || null,
       events: events,
     }));
   };
@@ -1983,10 +2224,14 @@ function MatchEditor({ match, teams, onSave, onCancel }) {
           </div>
         )}
 
-        <div className="form-row" style={{gridTemplateColumns:"1fr 1fr", marginBottom:18}}>
+        <div className="form-row" style={{gridTemplateColumns:"1.5fr 1fr 1fr", marginBottom:18}}>
           <div>
-            <label>Data / Orario</label>
-            <input value={date} onChange={e=>setDate(e.target.value)} placeholder="Es. Sab 20/06 · 20:00" />
+            <label>Data</label>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} />
+          </div>
+          <div>
+            <label>Orario</label>
+            <input type="time" value={time} onChange={e=>setTime(e.target.value)} />
           </div>
           <div>
             <label>Campo</label>
@@ -3237,649 +3482,13 @@ function CassaView({ db }) {
 }
 
 // =================================================================
-// PARSER FOGLI EXCEL (Sondaggio / Assicurazioni / Maglie)
-// =================================================================
-
-// Foglio "Sondaggio": colonna NOME E COGNOME + colonne data con SI/NO
-function parseSondaggio(workbook, sheetName) {
-  if (!sheetName) sheetName = workbook.SheetNames.find(n => /sondagg/i.test(n)) || workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  if (!sheet) return { empty: true, error: "Foglio non trovato." };
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-
-  // Trovo la riga di intestazione (cella tipo "NOME E COGNOME") e la sua colonna
-  let headerIdx = -1, nameCol = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i] || [];
-    for (let c = 0; c < r.length; c++) {
-      if (r[c] && /nome\s*e?\s*cognome/i.test(String(r[c]))) { headerIdx = i; nameCol = c; break; }
-    }
-    if (headerIdx >= 0) break;
-  }
-  if (headerIdx < 0) return { empty: true, error: "Intestazione 'NOME E COGNOME' non trovata nel foglio '" + sheetName + "'." };
-
-  const header = rows[headerIdx];
-  const dateCols = [];
-  for (let c = nameCol + 1; c < header.length; c++) {
-    const h = header[c];
-    if (!h) continue;
-    if (/totale/i.test(String(h))) break;       // fine colonne data
-    if (/etichett|somma/i.test(String(h))) continue;
-    const iso = parseItalianEventDate(h);
-    if (iso) dateCols.push({ col: c, iso, label: String(h).trim() });
-  }
-  if (dateCols.length === 0) return { empty: true, error: "Nessuna colonna data riconosciuta nel foglio '" + sheetName + "'." };
-
-  const people = [];
-  for (let i = headerIdx + 1; i < rows.length; i++) {
-    const r = rows[i] || [];
-    const rawName = r[nameCol];
-    if (!rawName || !String(rawName).trim()) continue;
-    if (/totale/i.test(String(rawName))) continue;
-    const name = String(rawName).trim();
-    const dmap = {};
-    let count = 0;
-    dateCols.forEach(dc => {
-      const v = r[dc.col];
-      if (v != null && /^s[iì]$/i.test(String(v).trim())) { dmap[dc.iso] = true; count++; }
-    });
-    people.push({ name, dates: dmap, count });
-  }
-  if (people.length === 0) return { empty: true, error: "Nessuna persona trovata nel foglio '" + sheetName + "'." };
-  return { sheetName, dateCols, people };
-}
-
-// Foglio "Dati assicurazioni"
-function parseInsurance(workbook, sheetName) {
-  if (!sheetName) sheetName = workbook.SheetNames.find(n => /assicuraz/i.test(n)) || workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  if (!sheet) return { empty: true, error: "Foglio non trovato." };
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-
-  let hIdx = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i] || [];
-    if (r.some(c => c && /nome\s*e\s*cognome/i.test(String(c)))) { hIdx = i; break; }
-  }
-  if (hIdx < 0) return { empty: true, error: "Intestazione 'Nome e cognome' non trovata." };
-
-  const header = (rows[hIdx] || []).map(c => c ? String(c).trim().toLowerCase() : "");
-  const findCol = (re) => header.findIndex(h => re.test(h));
-  const colInsured = findCol(/gi[aà]\s*assicurat/);
-  const colProg = findCol(/progressivo/);
-  const colName = findCol(/nome.*cognome/);
-  const colDob = findCol(/data.*nascita/);
-  const colBirth = findCol(/luogo.*nascita/);
-  const colAddr = findCol(/indirizzo/);
-  const colRes = findCol(/residen/);
-  const colCF = findCol(/codice\s*fiscale|fiscal/);
-  if (colName < 0) return { empty: true, error: "Colonna nome non individuata." };
-
-  const items = [];
-  let prog = 0;
-  for (let i = hIdx + 1; i < rows.length; i++) {
-    const r = rows[i] || [];
-    const rawName = r[colName];
-    if (!rawName || !String(rawName).trim()) continue;
-    if (/totale/i.test(String(rawName))) continue;
-    prog++;
-    const insuredRaw = colInsured >= 0 ? r[colInsured] : null;
-    const insured = !!(insuredRaw != null && String(insuredRaw).replace(/\u00a0/g, "").trim() !== "");
-    items.push({
-      id: uid(),
-      progressivo: colProg >= 0 && r[colProg] != null ? r[colProg] : prog,
-      name: String(rawName).trim(),
-      birthDate: colDob >= 0 ? cellToDateStr(r[colDob]) : "",
-      birthPlace: colBirth >= 0 && r[colBirth] != null ? String(r[colBirth]).trim() : "",
-      address: colAddr >= 0 && r[colAddr] != null ? String(r[colAddr]).trim() : "",
-      residence: colRes >= 0 && r[colRes] != null ? String(r[colRes]).trim() : "",
-      fiscalCode: colCF >= 0 && r[colCF] != null ? String(r[colCF]).trim().toUpperCase() : "",
-      insured,
-    });
-  }
-  if (items.length === 0) return { empty: true, error: "Nessuna riga dati trovata." };
-  return { sheetName, items };
-}
-
-// Foglio "Gestione maglie"
-function parseJerseys(workbook, sheetName) {
-  if (!sheetName) sheetName = workbook.SheetNames.find(n => /magli/i.test(n)) || workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  if (!sheet) return { empty: true, error: "Foglio non trovato." };
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-
-  let hIdx = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i] || [];
-    if (r.some(c => c && /persona/i.test(String(c)))) { hIdx = i; break; }
-  }
-  if (hIdx < 0) return { empty: true, error: "Intestazione 'PERSONA' non trovata." };
-
-  const header = (rows[hIdx] || []).map(c => c ? String(c).trim().toLowerCase() : "");
-  const colPerson = header.findIndex(h => /persona/.test(h));
-  const colSize = header.findIndex(h => /taglia/.test(h));
-  const colQty = header.findIndex(h => /quantit/.test(h));
-  const colType = header.findIndex(h => /tipolog/.test(h));
-
-  const items = [];
-  for (let i = hIdx + 1; i < rows.length; i++) {
-    const r = rows[i] || [];
-    const rawP = r[colPerson];
-    if (!rawP || !String(rawP).trim()) continue;
-    if (/totale/i.test(String(rawP))) continue;
-    items.push({
-      id: uid(),
-      person: String(rawP).trim(),
-      size: colSize >= 0 && r[colSize] != null ? String(r[colSize]).trim().toUpperCase() : "",
-      quantity: colQty >= 0 && r[colQty] != null ? (parseInt(r[colQty], 10) || 0) : 0,
-      type: colType >= 0 && r[colType] != null ? String(r[colType]).trim() : "",
-    });
-  }
-  if (items.length === 0) return { empty: true, error: "Nessuna riga maglie trovata." };
-  return { sheetName, items };
-}
-
-// Helper: crea un .xlsx da una lista di fogli { name, rows } e lo scarica
-function downloadExcel(sheets, filename) {
-  const wb = XLSX.utils.book_new();
-  sheets.forEach(s => {
-    const ws = XLSX.utils.aoa_to_sheet(s.rows);
-    XLSX.utils.book_append_sheet(wb, ws, String(s.name).slice(0, 31));
-  });
-  XLSX.writeFile(wb, filename);
-}
-
-// =================================================================
-// MODALE IMPORT EXCEL RIUTILIZZABILE (upload -> scelta foglio -> anteprima)
-// =================================================================
-function ImportSheetModal({ title, subtitle, matchSheet, parse, renderPreview, onImport, onCancel, replaceLabel, appendLabel }) {
-  const [workbook, setWorkbook] = useState(null);
-  const [sheetName, setSheetName] = useState("");
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef(null);
-
-  const run = (wb, sheet) => {
-    try {
-      const res = parse(wb, sheet);
-      if (!res || res.empty) { setData(null); setError(res && res.error ? res.error : "Nessun dato riconosciuto."); }
-      else { setData(res); setError(""); }
-    } catch (err) { setError("Errore: " + err.message); setData(null); }
-  };
-
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setLoading(true); setError(""); setData(null); setWorkbook(null); setSheetName("");
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const arr = new Uint8Array(ev.target.result);
-        const wb = XLSX.read(arr, { type: "array", cellDates: true });
-        const suggested = wb.SheetNames.find(n => matchSheet.test(n)) || wb.SheetNames[0];
-        setWorkbook(wb); setSheetName(suggested); run(wb, suggested);
-      } catch (err) { setError("Errore lettura file: " + err.message); }
-      finally { setLoading(false); }
-    };
-    reader.onerror = () => { setError("Impossibile leggere il file"); setLoading(false); };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const changeSheet = (s) => { setSheetName(s); if (workbook) run(workbook, s); };
-
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal wide" onClick={e => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>{title}</h2>
-          {subtitle && <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>{subtitle}</div>}
-        </div>
-
-        {!workbook && !loading && (
-          <div style={{padding:"24px", background:"var(--cream-soft)", border:"1.5px dashed var(--ink)", borderRadius:4, textAlign:"center"}}>
-            <div style={{fontSize:48, marginBottom:8}}>📊</div>
-            <p style={{marginBottom:14, fontStyle:"italic"}}>Seleziona il file .xlsx</p>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{display:"none"}} />
-            <button className="btn btn-primary" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Scegli file Excel</button>
-          </div>
-        )}
-
-        {loading && <p style={{textAlign:"center", padding:30, fontStyle:"italic"}}>Lettura file in corso…</p>}
-
-        {workbook && (
-          <>
-            <div className="form-row" style={{gridTemplateColumns:"1fr auto", alignItems:"end", marginBottom:16}}>
-              <div>
-                <label>Foglio da importare</label>
-                <select value={sheetName} onChange={e => changeSheet(e.target.value)}>
-                  {workbook.SheetNames.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-              <button className="btn btn-sm" onClick={() => { setWorkbook(null); setData(null); setError(""); }}>Cambia file</button>
-            </div>
-
-            {error && <div style={{padding:14, background:"rgba(200,85,61,0.1)", border:"1.5px solid var(--terracotta-dark)", borderRadius:4, color:"var(--terracotta-dark)", marginBottom:16, fontSize:14}}>{error}</div>}
-
-            {data && renderPreview(data)}
-          </>
-        )}
-
-        <div className="modal-actions">
-          <button className="btn" onClick={onCancel}>Annulla</button>
-          {data && (
-            <>
-              <button className="btn" onClick={() => onImport(data, "append")}>{appendLabel || "Aggiungi"}</button>
-              <button className="btn btn-primary" onClick={() => { if (confirm("Sostituire i dati esistenti con quelli importati?")) onImport(data, "replace"); }}>{replaceLabel || "Sostituisci tutto"}</button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =================================================================
-// AREA STAFF — contenitore con sub-tab: Turni · Assicurazioni · Maglie
-// =================================================================
-function StaffArea(props) {
-  const { staff, setStaff, positions, setPositions, shifts, setShifts, availability, setAvailability, insurance, setInsurance, jerseys, setJerseys, showToast } = props;
-  const [sub, setSub] = useState("turni");
-  const jerseyTotal = (jerseys || []).reduce((a, j) => a + (parseInt(j.quantity, 10) || 0), 0);
-  const subtabs = [
-    { id: "turni", label: "Turni", icon: "🗓", badge: staff.length || null },
-    { id: "assicurazioni", label: "Assicurazioni", icon: "🛡", badge: (insurance || []).length || null },
-    { id: "maglie", label: "Maglie", icon: "👕", badge: jerseyTotal || null },
-  ];
-  return (
-    <>
-      <div className="staff-subtabs">
-        {subtabs.map(t => (
-          <button key={t.id} className={"staff-subtab " + (sub === t.id ? "active" : "")} onClick={() => setSub(t.id)}>
-            <span>{t.icon} {t.label}</span>
-            {t.badge != null && <span className="st-badge">{t.badge}</span>}
-          </button>
-        ))}
-      </div>
-      {sub === "turni" && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} availability={availability} setAvailability={setAvailability} showToast={showToast} />}
-      {sub === "assicurazioni" && <InsuranceView insurance={insurance} setInsurance={setInsurance} showToast={showToast} />}
-      {sub === "maglie" && <JerseysView jerseys={jerseys} setJerseys={setJerseys} showToast={showToast} />}
-    </>
-  );
-}
-
-// =================================================================
-// ASSICURAZIONI
-// =================================================================
-function InsuranceView({ insurance, setInsurance, showToast }) {
-  const [importOpen, setImportOpen] = useState(false);
-  const [costPer, setCostPer] = useState(() => {
-    const v = localStorage.getItem("tdp.insuranceCostPer");
-    return v != null ? v : "10";
-  });
-  const list = insurance || [];
-
-  const setCost = (v) => { setCostPer(v); try { localStorage.setItem("tdp.insuranceCostPer", v); } catch {} };
-
-  const updateField = (id, field, value) => {
-    setInsurance(list.map(r => r.id === id ? Object.assign({}, r, { [field]: value }) : r));
-  };
-  const addRow = () => {
-    const maxProg = list.reduce((m, r) => Math.max(m, parseInt(r.progressivo, 10) || 0), 0);
-    setInsurance([...list, { id: uid(), progressivo: maxProg + 1, name: "", birthDate: "", birthPlace: "", address: "", residence: "", fiscalCode: "", insured: false }]);
-  };
-  const removeRow = (id) => {
-    if (!confirm("Rimuovere questa riga?")) return;
-    setInsurance(list.filter(r => r.id !== id));
-  };
-  const importInsurance = (data, mode) => {
-    if (mode === "replace") setInsurance(data.items);
-    else {
-      const maxProg = list.reduce((m, r) => Math.max(m, parseInt(r.progressivo, 10) || 0), 0);
-      const appended = data.items.map((it, i) => Object.assign({}, it, { progressivo: maxProg + i + 1 }));
-      setInsurance([...list, ...appended]);
-    }
-    setImportOpen(false);
-    showToast("Assicurazioni importate · " + data.items.length + " persone");
-  };
-
-  const insuredCount = list.filter(r => r.insured).length;
-  const toInsureCount = list.length - insuredCount;
-  const cost = parseFloat(costPer) || 0;
-  const totalCost = toInsureCount * cost;
-
-  const exportExcel = () => {
-    if (list.length === 0) { alert("Nessun dato da esportare."); return; }
-    try {
-      const rows = [["Progressivo", "Nome e cognome", "Data di nascita", "Luogo di nascita", "Indirizzo", "Residenza", "Codice Fiscale", "Già assicurato"]];
-      list.forEach((r, i) => rows.push([
-        r.progressivo || i + 1, r.name || "", r.birthDate || "", r.birthPlace || "",
-        r.address || "", r.residence || "", r.fiscalCode || "", r.insured ? "SI" : ""
-      ]));
-      rows.push([]);
-      rows.push(["TOTALE PERSONE", list.length]);
-      rows.push(["GIÀ ASSICURATE", insuredCount]);
-      rows.push(["DA ASSICURARE", toInsureCount]);
-      rows.push(["COSTO A PERSONA (€)", cost]);
-      rows.push(["SPESA (SOLO DA ASSICURARE) (€)", totalCost]);
-      downloadExcel([{ name: "Dati assicurazioni", rows }], "TdP-assicurazioni-" + new Date().toISOString().slice(0, 10) + ".xlsx");
-      showToast("Excel assicurazioni esportato");
-    } catch (e) { alert("Errore export: " + e.message); }
-  };
-
-  return (
-    <>
-      <div className="section-head">
-        <div>
-          <h1>Dati Assicurazioni</h1>
-          <div className="subtitle">{list.length} persone · {insuredCount} già assicurate</div>
-        </div>
-        <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-          <button className="btn btn-sm btn-gold" onClick={() => setImportOpen(true)}>📊 Importa Excel</button>
-          {list.length > 0 && <button className="btn btn-sm" onClick={exportExcel}>⬇ Esporta Excel</button>}
-          <button className="btn btn-sm btn-primary" onClick={addRow}>+ Aggiungi persona</button>
-        </div>
-      </div>
-
-      <div className="data-summary">
-        <div className="ds-item"><div className="ds-label">Persone</div><div className="ds-value">{list.length}</div></div>
-        <div className="ds-item"><div className="ds-label">Già assicurate</div><div className="ds-value">{insuredCount}</div></div>
-        <div className="ds-item"><div className="ds-label">Da assicurare</div><div className="ds-value">{toInsureCount}</div></div>
-        <div className="ds-item">
-          <div className="ds-label">Costo a persona (€)</div>
-          <input value={costPer} onChange={e => setCost(e.target.value)} style={{width:70, fontSize:18, padding:"4px 8px", fontFamily:"'Bebas Neue', sans-serif"}} />
-        </div>
-        <div className="ds-item"><div className="ds-label">Spesa (solo da assicurare)</div><div className="ds-value">{totalCost.toFixed(0)}<span className="ds-unit">€</span></div></div>
-      </div>
-
-      {list.length === 0 ? (
-        <div className="empty">
-          <div className="empty-icon">🛡</div>
-          <h3>Nessun dato assicurazione</h3>
-          <p>Importa il foglio "Dati assicurazioni" dall'Excel oppure aggiungi le persone manualmente.</p>
-          <button className="btn btn-gold" onClick={() => setImportOpen(true)}>📊 Importa Excel</button>
-        </div>
-      ) : (
-        <div className="data-table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="num">#</th>
-                <th>Nome e cognome</th>
-                <th>Data nascita</th>
-                <th>Luogo nascita</th>
-                <th>Indirizzo</th>
-                <th>Residenza</th>
-                <th>Codice fiscale</th>
-                <th style={{textAlign:"center"}}>Assic.</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((r, i) => (
-                <tr key={r.id}>
-                  <td className="row-num">{r.progressivo || i + 1}</td>
-                  <td><input className="cell-input" value={r.name || ""} onChange={e => updateField(r.id, "name", e.target.value)} placeholder="Nome Cognome" /></td>
-                  <td><input className="cell-input" value={r.birthDate || ""} onChange={e => updateField(r.id, "birthDate", e.target.value)} placeholder="gg/mm/aaaa" style={{minWidth:100}} /></td>
-                  <td><input className="cell-input" value={r.birthPlace || ""} onChange={e => updateField(r.id, "birthPlace", e.target.value)} /></td>
-                  <td><input className="cell-input" value={r.address || ""} onChange={e => updateField(r.id, "address", e.target.value)} /></td>
-                  <td><input className="cell-input" value={r.residence || ""} onChange={e => updateField(r.id, "residence", e.target.value)} /></td>
-                  <td><input className="cell-input" value={r.fiscalCode || ""} onChange={e => updateField(r.id, "fiscalCode", e.target.value.toUpperCase())} style={{minWidth:150, fontFamily:"'JetBrains Mono', monospace", fontSize:12}} /></td>
-                  <td style={{textAlign:"center"}}><input type="checkbox" checked={!!r.insured} onChange={e => updateField(r.id, "insured", e.target.checked)} style={{width:"auto"}} /></td>
-                  <td className="actions"><button onClick={() => removeRow(r.id)} title="Rimuovi">🗑</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {importOpen && (
-        <ImportSheetModal
-          title="Importa dati assicurazioni"
-          subtitle="Leggo il foglio con i dati anagrafici dello staff per le assicurazioni."
-          matchSheet={/assicuraz/i}
-          parse={parseInsurance}
-          renderPreview={(data) => (
-            <div>
-              <p style={{fontSize:13, marginBottom:10, color:"var(--ink-soft)"}}><strong>{data.items.length}</strong> persone riconosciute.</p>
-              <div style={{maxHeight:300, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:4}}>
-                <table className="data-table" style={{minWidth:0}}>
-                  <thead><tr><th>Nome</th><th>Nascita</th><th>C.F.</th></tr></thead>
-                  <tbody>
-                    {data.items.map((it, i) => (
-                      <tr key={i}>
-                        <td style={{padding:"6px 10px", fontFamily:"'Fraunces', serif", fontWeight:600}}>{it.name}</td>
-                        <td style={{padding:"6px 10px", fontSize:12}}>{it.birthDate || "—"}</td>
-                        <td style={{padding:"6px 10px", fontFamily:"'JetBrains Mono', monospace", fontSize:11}}>{it.fiscalCode || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          onImport={importInsurance}
-          onCancel={() => setImportOpen(false)}
-          replaceLabel="Sostituisci tutto"
-          appendLabel="Aggiungi a esistenti"
-        />
-      )}
-    </>
-  );
-}
-
-// =================================================================
-// GESTIONE MAGLIE
-// =================================================================
-const JERSEY_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
-const JERSEY_TYPES = ["Maglia", "Canottiera", "Felpa", "Pantaloncini", "Altro"];
-
-function JerseysView({ jerseys, setJerseys, showToast }) {
-  const [importOpen, setImportOpen] = useState(false);
-  const list = jerseys || [];
-
-  const updateField = (id, field, value) => {
-    setJerseys(list.map(r => r.id === id ? Object.assign({}, r, { [field]: value }) : r));
-  };
-  const addRow = () => setJerseys([...list, { id: uid(), person: "", size: "", quantity: 1, type: "Maglia" }]);
-  const removeRow = (id) => { if (!confirm("Rimuovere questa riga?")) return; setJerseys(list.filter(r => r.id !== id)); };
-  const importJerseys = (data, mode) => {
-    if (mode === "replace") setJerseys(data.items);
-    else setJerseys([...list, ...data.items]);
-    setImportOpen(false);
-    showToast("Maglie importate · " + data.items.length + " righe");
-  };
-
-  const totalQty = list.reduce((a, r) => a + (parseInt(r.quantity, 10) || 0), 0);
-  const byType = {};
-  const bySize = {};
-  list.forEach(r => {
-    const q = parseInt(r.quantity, 10) || 0;
-    const t = r.type || "—"; const s = r.size || "—";
-    byType[t] = (byType[t] || 0) + q;
-    bySize[s] = (bySize[s] || 0) + q;
-  });
-
-  const sizeOptionsFor = (val) => {
-    const opts = JERSEY_SIZES.slice();
-    if (val && !opts.includes(val)) opts.unshift(val);
-    return opts;
-  };
-  const typeOptionsFor = (val) => {
-    const opts = JERSEY_TYPES.slice();
-    if (val && !opts.includes(val)) opts.unshift(val);
-    return opts;
-  };
-
-  const exportExcel = () => {
-    if (list.length === 0) { alert("Nessun dato da esportare."); return; }
-    try {
-      const rows = [["PERSONA", "TAGLIA", "QUANTITÀ", "TIPOLOGIA"]];
-      list.forEach(r => rows.push([r.person || "", r.size || "", parseInt(r.quantity, 10) || 0, r.type || ""]));
-      rows.push([]);
-      rows.push(["TOTALE CAPI", totalQty]);
-
-      const summary = [["Riepilogo per tipologia", "Capi"]];
-      Object.keys(byType).sort().forEach(t => summary.push([t, byType[t]]));
-      summary.push([]);
-      summary.push(["Riepilogo per taglia", "Capi"]);
-      Object.keys(bySize).sort().forEach(s => summary.push([s, bySize[s]]));
-
-      downloadExcel([
-        { name: "Gestione maglie", rows },
-        { name: "Riepilogo", rows: summary },
-      ], "TdP-maglie-" + new Date().toISOString().slice(0, 10) + ".xlsx");
-      showToast("Excel maglie esportato");
-    } catch (e) { alert("Errore export: " + e.message); }
-  };
-
-  return (
-    <>
-      <div className="section-head">
-        <div>
-          <h1>Gestione Maglie</h1>
-          <div className="subtitle">{list.length} righe · {totalQty} capi totali</div>
-        </div>
-        <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-          <button className="btn btn-sm btn-gold" onClick={() => setImportOpen(true)}>📊 Importa Excel</button>
-          {list.length > 0 && <button className="btn btn-sm" onClick={exportExcel}>⬇ Esporta Excel</button>}
-          <button className="btn btn-sm btn-primary" onClick={addRow}>+ Aggiungi riga</button>
-        </div>
-      </div>
-
-      <div className="data-summary">
-        <div className="ds-item"><div className="ds-label">Capi totali</div><div className="ds-value">{totalQty}</div></div>
-        {Object.keys(byType).sort().map(t => (
-          <div className="ds-item" key={t}><div className="ds-label">{t}</div><div className="ds-value">{byType[t]}</div></div>
-        ))}
-      </div>
-      {Object.keys(bySize).length > 0 && (
-        <div className="data-summary">
-          {Object.keys(bySize).sort().map(s => (
-            <div className="ds-item" key={s}><div className="ds-label">Taglia {s}</div><div className="ds-value">{bySize[s]}</div></div>
-          ))}
-        </div>
-      )}
-
-      {list.length === 0 ? (
-        <div className="empty">
-          <div className="empty-icon">👕</div>
-          <h3>Nessuna maglia registrata</h3>
-          <p>Importa il foglio "Gestione maglie" dall'Excel oppure aggiungi le righe manualmente.</p>
-          <button className="btn btn-gold" onClick={() => setImportOpen(true)}>📊 Importa Excel</button>
-        </div>
-      ) : (
-        <div className="data-table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="num">#</th>
-                <th>Persona</th>
-                <th style={{width:120}}>Taglia</th>
-                <th style={{width:90}}>Quantità</th>
-                <th style={{width:160}}>Tipologia</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((r, i) => (
-                <tr key={r.id}>
-                  <td className="row-num">{i + 1}</td>
-                  <td><input className="cell-input" value={r.person || ""} onChange={e => updateField(r.id, "person", e.target.value)} placeholder="Nome" /></td>
-                  <td>
-                    <select className="cell-input" value={r.size || ""} onChange={e => updateField(r.id, "size", e.target.value)}>
-                      <option value="">—</option>
-                      {sizeOptionsFor(r.size).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </td>
-                  <td><input className="cell-input" type="number" min="0" value={r.quantity != null ? r.quantity : 0} onChange={e => updateField(r.id, "quantity", parseInt(e.target.value, 10) || 0)} style={{textAlign:"center"}} /></td>
-                  <td>
-                    <select className="cell-input" value={r.type || ""} onChange={e => updateField(r.id, "type", e.target.value)}>
-                      <option value="">—</option>
-                      {typeOptionsFor(r.type).map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </td>
-                  <td className="actions"><button onClick={() => removeRow(r.id)} title="Rimuovi">🗑</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {importOpen && (
-        <ImportSheetModal
-          title="Importa gestione maglie"
-          subtitle="Leggo il foglio con persona, taglia, quantità e tipologia."
-          matchSheet={/magli/i}
-          parse={parseJerseys}
-          renderPreview={(data) => (
-            <div>
-              <p style={{fontSize:13, marginBottom:10, color:"var(--ink-soft)"}}><strong>{data.items.length}</strong> righe riconosciute.</p>
-              <div style={{maxHeight:300, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:4}}>
-                <table className="data-table" style={{minWidth:0}}>
-                  <thead><tr><th>Persona</th><th>Taglia</th><th>Q.tà</th><th>Tipo</th></tr></thead>
-                  <tbody>
-                    {data.items.map((it, i) => (
-                      <tr key={i}>
-                        <td style={{padding:"6px 10px", fontFamily:"'Fraunces', serif", fontWeight:600}}>{it.person}</td>
-                        <td style={{padding:"6px 10px"}}>{it.size || "—"}</td>
-                        <td style={{padding:"6px 10px", textAlign:"center"}}>{it.quantity}</td>
-                        <td style={{padding:"6px 10px"}}>{it.type || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          onImport={importJerseys}
-          onCancel={() => setImportOpen(false)}
-          replaceLabel="Sostituisci tutto"
-          appendLabel="Aggiungi a esistenti"
-        />
-      )}
-    </>
-  );
-}
-
-// =================================================================
 // SHIFTS / TURNI STAFF
 // =================================================================
-function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, availability, setAvailability, showToast }) {
+function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, showToast }) {
   const [addingStaff, setAddingStaff] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPreferred, setNewPreferred] = useState("");
   const [newNote, setNewNote] = useState("");
-  const [importOpen, setImportOpen] = useState(false);
-
-  // Date della matrice = date torneo + eventuali date extra trovate nelle disponibilità (es. Festa finale)
-  const dates = useMemo(() => {
-    const base = TOURNAMENT_DATES.map(d => Object.assign({}, d));
-    const known = new Set(base.map(d => d.iso));
-    const extra = new Set();
-    Object.values(availability || {}).forEach(dmap => {
-      if (dmap) Object.keys(dmap).forEach(iso => { if (!known.has(iso)) extra.add(iso); });
-    });
-    [...extra].forEach(iso => base.push({ iso, label: isoToLabel(iso), note: "", phase: "Evento" }));
-    return base.sort((a, b) => a.iso.localeCompare(b.iso));
-  }, [availability]);
-
-  // Set di staffId disponibili per una certa data (in base al Sondaggio importato)
-  const availableForDate = (iso) => {
-    const ids = new Set();
-    Object.entries(availability || {}).forEach(([sid, dmap]) => {
-      if (dmap && dmap[iso]) ids.add(sid);
-    });
-    return ids;
-  };
-  // Numero di disponibilità registrate per uno staffId (0 = nessun dato importato)
-  const availCountFor = (sid) => {
-    const dmap = (availability || {})[sid];
-    return dmap ? Object.keys(dmap).length : 0;
-  };
-  const hasAvailabilityData = Object.keys(availability || {}).length > 0;
 
   const [addingPos, setAddingPos] = useState(false);
   const [newPosName, setNewPosName] = useState("");
@@ -3937,7 +3546,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   };
 
   const removeStaff = (id) => {
-    if (!confirm("Rimuovere DEFINITIVAMENTE questa persona dallo staff?\nLe sue assegnazioni e disponibilità verranno cancellate.")) return;
+    if (!confirm("Rimuovere DEFINITIVAMENTE questa persona dallo staff?\nLe sue assegnazioni verranno cancellate.")) return;
     const newShifts = {};
     Object.entries(shifts).forEach(([k, v]) => {
       const arr = typeof v === "string" ? [v] : (Array.isArray(v) ? v : []);
@@ -3945,78 +3554,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       if (filtered.length > 0) newShifts[k] = filtered;
     });
     setShifts(newShifts);
-    if (availability && availability[id]) {
-      const na = Object.assign({}, availability);
-      delete na[id];
-      setAvailability(na);
-    }
     setStaff(staff.filter(s => s.id !== id));
     setEditingStaff(null);
     showToast("Persona rimossa");
-  };
-
-  // Import disponibilità dal foglio "Sondaggio": crea le persone mancanti e registra le date SI
-  const importAvailability = (data, mode) => {
-    const norm = (n) => String(n || "").trim().toLowerCase();
-    const newStaff = staff.slice();
-    const byName = {};
-    newStaff.forEach(s => { byName[norm(s.name)] = s; });
-
-    const newAvail = mode === "replace" ? {} : Object.assign({}, availability || {});
-    let created = 0;
-    data.people.forEach(p => {
-      let person = byName[norm(p.name)];
-      if (!person) {
-        person = { id: uid(), name: p.name, preferredPosition: "", note: "" };
-        newStaff.push(person);
-        byName[norm(p.name)] = person;
-        created++;
-      }
-      newAvail[person.id] = Object.assign({}, p.dates);
-    });
-    setStaff(newStaff);
-    setAvailability(newAvail);
-    setImportOpen(false);
-    showToast("Disponibilità importate · " + data.people.length + " persone" + (created ? " (" + created + " nuove)" : ""));
-  };
-
-  // Export Turni (matrice assegnazioni) + Disponibilità (matrice Sondaggio)
-  const exportExcel = () => {
-    try {
-      // Foglio Turni: righe = serate, colonne = aree, celle = nomi assegnati
-      const turniRows = [["Serata", "Fase", ...positions.map(p => p.name), "Totale"]];
-      dates.forEach(d => {
-        const cells = positions.map(p => getAssigned(d.iso, p.id).map(sid => (staffById[sid] ? staffById[sid].name : "")).filter(Boolean).join(", "));
-        const rowTot = positions.reduce((a, p) => a + getAssigned(d.iso, p.id).length, 0);
-        turniRows.push([d.label, d.phase, ...cells, rowTot]);
-      });
-      turniRows.push(["Totale per area", "", ...positions.map(p => dates.reduce((a, d) => a + getAssigned(d.iso, p.id).length, 0)), totalAssignments]);
-
-      const sheets = [{ name: "Turni", rows: turniRows }];
-
-      // Foglio Disponibilità (solo se ci sono dati): matrice persona x data, SI/blank
-      if (hasAvailabilityData) {
-        const dispRows = [["Nome e cognome", ...dates.map(d => d.label), "Totale presenze"]];
-        staff.forEach(s => {
-          const dmap = availability[s.id] || {};
-          const cells = dates.map(d => (dmap[d.iso] ? "SI" : ""));
-          const tot = cells.filter(Boolean).length;
-          dispRows.push([s.name, ...cells, tot]);
-        });
-        dispRows.push(["TOTALE", ...dates.map(d => availableForDate(d.iso).size), ""]);
-        sheets.push({ name: "Disponibilità", rows: dispRows });
-      }
-
-      // Foglio Riepilogo turni per persona
-      const riepRows = [["Persona", "Turni assegnati"]];
-      staff.map(s => ({ name: s.name, c: staffStats[s.id] || 0 }))
-        .sort((a, b) => b.c - a.c)
-        .forEach(s => riepRows.push([s.name, s.c]));
-      sheets.push({ name: "Riepilogo turni", rows: riepRows });
-
-      downloadExcel(sheets, "TdP-staff-turni-" + new Date().toISOString().slice(0, 10) + ".xlsx");
-      showToast("Excel turni esportato");
-    } catch (e) { alert("Errore export: " + e.message); }
   };
 
   const addPosition = () => {
@@ -4066,7 +3606,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     const arr = typeof v === "string" ? [v] : (Array.isArray(v) ? v : []);
     return arr.length > 0;
   }).length;
-  const totalCells = dates.length * positions.length;
+  const totalCells = TOURNAMENT_DATES.length * positions.length;
 
   // Lookup map per nome staff
   const staffById = useMemo(() => {
@@ -4078,12 +3618,8 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   // Per la modale picker: ID delle persone già in quella cella
   const pickerCurrent = picker ? getAssigned(picker.iso, picker.posId) : [];
   const pickerAvailable = picker ? staff.filter(s => !pickerCurrent.includes(s.id)) : [];
-  const pickerAvailSet = picker ? availableForDate(picker.iso) : new Set();
-  // Ordino: prima chi è disponibile quella sera (Sondaggio), poi chi ha quella posizione come preferita
+  // Ordino i disponibili mettendo prima chi ha quella posizione come preferita
   const pickerSorted = picker ? pickerAvailable.slice().sort((a, b) => {
-    const aAvail = pickerAvailSet.has(a.id) ? 0 : 1;
-    const bAvail = pickerAvailSet.has(b.id) ? 0 : 1;
-    if (aAvail !== bAvail) return aAvail - bAvail;
     const aPref = a.preferredPosition === picker.posId ? 0 : 1;
     const bPref = b.preferredPosition === picker.posId ? 0 : 1;
     if (aPref !== bPref) return aPref - bPref;
@@ -4097,11 +3633,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           <h1>Turni Staff</h1>
           <div className="subtitle">
             {totalAssignments} assegnazioni · {filledCells}/{totalCells} celle coperte
-            {hasAvailabilityData && " · disponibilità Sondaggio caricate"}
           </div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-          <button className="btn btn-sm" onClick={exportExcel}>⬇ Esporta Excel</button>
           {totalAssignments > 0 && <button className="btn btn-sm btn-danger" onClick={clearAllShifts}>Svuota tutto</button>}
         </div>
       </div>
@@ -4110,14 +3644,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       <div className="shifts-panel">
         <div className="shifts-panel-head">
           <h3>Staff ({staff.length})</h3>
-          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-            <button className="btn btn-sm btn-gold" onClick={() => setImportOpen(true)}>
-              📊 Importa Sondaggio
-            </button>
-            <button className="btn btn-sm btn-primary" onClick={() => setAddingStaff(!addingStaff)}>
-              {addingStaff ? "Annulla" : "+ Aggiungi persona"}
-            </button>
-          </div>
+          <button className="btn btn-sm btn-primary" onClick={() => setAddingStaff(!addingStaff)}>
+            {addingStaff ? "Annulla" : "+ Aggiungi persona"}
+          </button>
         </div>
 
         {addingStaff && (
@@ -4162,11 +3691,6 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                   <span className="phone" style={{color:"var(--gold-deep)", fontWeight:600}}>
                     {staffStats[s.id] || 0} turni
                   </span>
-                  {availCountFor(s.id) > 0 && (
-                    <span className="phone" style={{color:"var(--green-field)", fontWeight:600}} title="Serate disponibili (Sondaggio)">
-                      {availCountFor(s.id)} disp.
-                    </span>
-                  )}
                   <button onClick={() => setEditingStaff(s)} title="Modifica / elimina" className="chip-edit-btn">✎</button>
                 </span>
               );
@@ -4224,17 +3748,14 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               </tr>
             </thead>
             <tbody>
-              {dates.map(d => {
+              {TOURNAMENT_DATES.map(d => {
                 // Totale per riga (questa serata)
                 const rowTotal = positions.reduce((acc, p) => acc + getAssigned(d.iso, p.id).length, 0);
-                const availCount = hasAvailabilityData ? availableForDate(d.iso).size : null;
-                const phaseClass = d.phase === "Finali" ? "finali" : (d.phase === "Evento" ? "evento" : "");
                 return (
                   <tr key={d.iso}>
                     <td className="date-cell">
                       <div className="date-label">{d.label}</div>
-                      <span className={"date-phase " + phaseClass}>{d.phase}</span>
-                      {availCount != null && <span className="date-avail" title="Persone disponibili (Sondaggio)">{availCount} disp.</span>}
+                      <span className={"date-phase " + (d.phase === "Finali" ? "finali" : "")}>{d.phase}</span>
                     </td>
                     {positions.map(p => {
                       const assigned = getAssigned(d.iso, p.id);
@@ -4244,11 +3765,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                             {assigned.map(sid => {
                               const person = staffById[sid];
                               if (!person) return null;
-                              // Segnalo se la persona NON risulta disponibile quella sera
-                              const notAvail = hasAvailabilityData && availCountFor(sid) > 0 && !(availability[sid] && availability[sid][d.iso]);
                               return (
-                                <span key={sid} className="assigned-pill" style={notAvail ? {background:"var(--terracotta-dark)"} : null} title={notAvail ? "Non risulta disponibile questa sera" : ""}>
-                                  {person.name}{notAvail ? " ⚠" : ""}
+                                <span key={sid} className="assigned-pill">
+                                  {person.name}
                                   <button onClick={() => removeAssignment(d.iso, p.id, sid)} title="Rimuovi">✕</button>
                                 </span>
                               );
@@ -4272,7 +3791,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               <tr className="totals-row">
                 <td className="date-cell totals-label">Totale per area</td>
                 {positions.map(p => {
-                  const colTotal = dates.reduce((acc, d) => acc + getAssigned(d.iso, p.id).length, 0);
+                  const colTotal = TOURNAMENT_DATES.reduce((acc, d) => acc + getAssigned(d.iso, p.id).length, 0);
                   return (
                     <td key={p.id} className={"total-cell " + (colTotal === 0 ? "zero" : "")}>{colTotal}</td>
                   );
@@ -4311,9 +3830,8 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             <div className="modal-head">
               <h2>Aggiungi a {positions.find(p => p.id === picker.posId) ? positions.find(p => p.id === picker.posId).name : ""}</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                {dates.find(d => d.iso === picker.iso) ? dates.find(d => d.iso === picker.iso).label : ""}
+                {TOURNAMENT_DATES.find(d => d.iso === picker.iso) ? TOURNAMENT_DATES.find(d => d.iso === picker.iso).label : ""}
                 {pickerCurrent.length > 0 && " · " + pickerCurrent.length + " già assegnati"}
-                {hasAvailabilityData && " · " + pickerAvailSet.size + " disponibili"}
               </div>
             </div>
             {pickerSorted.length === 0 ? (
@@ -4324,8 +3842,6 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               <div style={{display:"flex", flexDirection:"column", gap:6, maxHeight:400, overflowY:"auto"}}>
                 {pickerSorted.map(s => {
                   const isPref = s.preferredPosition === picker.posId;
-                  const isAvail = pickerAvailSet.has(s.id);
-                  const hasData = availCountFor(s.id) > 0;
                   return (
                     <button
                       key={s.id}
@@ -4336,16 +3852,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                         display:"flex",
                         alignItems:"center",
                         padding:"10px 14px",
-                        background: isAvail ? "rgba(45,143,90,0.12)" : (isPref ? "rgba(232,185,72,0.15)" : "var(--paper)"),
-                        borderColor: isAvail ? "var(--green-bright)" : (isPref ? "var(--gold-deep)" : "var(--ink)"),
-                        opacity: (hasAvailabilityData && hasData && !isAvail) ? 0.6 : 1,
+                        background: isPref ? "rgba(232,185,72,0.15)" : "var(--paper)",
+                        borderColor: isPref ? "var(--gold-deep)" : "var(--ink)",
                       }}
                       onClick={() => { addAssignment(picker.iso, picker.posId, s.id); setPicker(null); }}
                     >
                       <span style={{fontFamily:"'Fraunces', serif", fontWeight:600, fontSize:15, textTransform:"none", letterSpacing:0}}>
                         {s.name}
-                        {isAvail && <span className="avail-tag yes">✓ disp.</span>}
-                        {hasAvailabilityData && hasData && !isAvail && <span className="avail-tag no">non disp.</span>}
                         {isPref && <span style={{marginLeft:8, fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"var(--gold-deep)", letterSpacing:"0.1em"}}>★ DESIDERATA</span>}
                       </span>
                       <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color:"var(--ink-soft)"}}>
@@ -4361,37 +3874,6 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             </div>
           </div>
         </div>
-      )}
-
-      {/* MODALE IMPORT DISPONIBILITÀ (Sondaggio) */}
-      {importOpen && (
-        <ImportSheetModal
-          title="Importa disponibilità (Sondaggio)"
-          subtitle="Carica l'Excel: leggo il foglio Sondaggio (presenze SI/NO per data) e creo le persone mancanti."
-          matchSheet={/sondagg/i}
-          parse={parseSondaggio}
-          renderPreview={(data) => (
-            <div>
-              <p style={{fontSize:13, marginBottom:10, color:"var(--ink-soft)"}}>
-                <strong>{data.people.length}</strong> persone · <strong>{data.dateCols.length}</strong> date riconosciute.
-              </p>
-              <div style={{maxHeight:320, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:4}}>
-                <table className="data-table" style={{minWidth:0}}>
-                  <thead><tr><th>Persona</th><th className="num">Date disp.</th></tr></thead>
-                  <tbody>
-                    {data.people.map((p, i) => (
-                      <tr key={i}><td style={{padding:"6px 10px", fontFamily:"'Fraunces', serif", fontWeight:600}}>{p.name}</td><td className="row-num">{p.count}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          onImport={importAvailability}
-          onCancel={() => setImportOpen(false)}
-          replaceLabel="Sostituisci disponibilità"
-          appendLabel="Aggiorna / unisci"
-        />
       )}
 
       {/* MODALE MODIFICA PERSONA STAFF */}
