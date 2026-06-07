@@ -998,19 +998,70 @@ function App() {
   // I match della fase a gironi vengono abbinati alle squadre tramite seedingPosition
   // Quelli della fase finali restano "placeholder" e si risolvono runtime tramite la classifica
   const regenerateSchedule = () => {
-    if (!confirm("Genero il calendario ufficiale 2026? I risultati esistenti verranno persi (squadre, gironi e date restano).")) return;
-    const newMatches = TOURNAMENT_MATCHES_TEMPLATE.map(t => Object.assign({
-      id: uid(),
-      homeScore: null, awayScore: null, played: false,
-      events: [],
-      // Per la fase a gironi, salvo il girone come metadata
-      girone: t.phase === "gironi" ? t.home.charAt(0) : null,
-      // Conserva il "slot" originale per identificare la posizione nel template
-      slotHome: t.home,
-      slotAway: t.away,
-    }, t));
+    // Solo partite di gironi
+    const gironiTemplate = TOURNAMENT_MATCHES_TEMPLATE.filter(t => t.phase === "gironi");
+
+    // Verifica che ci siano squadre nei gironi
+    const teamsByGirone = {};
+    GIRONE_NAMES.forEach(g => {
+      // Squadre in ordine di inserimento nell'array `teams`
+      teamsByGirone[g] = teams.filter(t => t.girone === g);
+    });
+
+    // Controllo: serve almeno qualche squadra in qualche girone
+    const totalTeamsAssegnate = Object.values(teamsByGirone).reduce((a, arr) => a + arr.length, 0);
+    if (totalTeamsAssegnate === 0) {
+      alert("Nessuna squadra è ancora assegnata a un girone.\nVai nella sezione Squadre e assegna ogni squadra a un girone (A, B, C, D).");
+      return;
+    }
+
+    // Diagnostica: gironi non completi
+    const incompleti = GIRONE_NAMES.filter(g => teamsByGirone[g].length < 4);
+    let warningMsg = "";
+    if (incompleti.length > 0) {
+      const dettagli = incompleti.map(g => "Girone " + g + ": " + teamsByGirone[g].length + "/4 squadre").join("\n");
+      warningMsg = "\n\n⚠ Attenzione, gironi non completi:\n" + dettagli + "\n\nLe partite mancanti verranno comunque create con placeholder e potranno essere completate quando aggiungerai le squadre.";
+    }
+
+    if (!confirm("Generare il calendario dei gironi?" + warningMsg + "\n\nI risultati esistenti verranno persi.")) return;
+
+    // Risolvi una sigla (es. "A1", "B3") in un teamId concreto basato sull'ordine
+    // di creazione: prima squadra del girone A = A1, seconda = A2, ecc.
+    const resolveSlotToTeamId = (slot) => {
+      const m = /^([A-D])([1-4])$/.exec(slot);
+      if (!m) return null;
+      const girone = m[1];
+      const pos = parseInt(m[2], 10);
+      const team = teamsByGirone[girone][pos - 1]; // pos 1-based, array 0-based
+      return team ? team.id : null;
+    };
+
+    // Genera le partite
+    const newMatches = gironiTemplate.map(t => {
+      const homeId = resolveSlotToTeamId(t.home);
+      const awayId = resolveSlotToTeamId(t.away);
+      return {
+        id: uid(),
+        date: t.date,
+        time: t.time,
+        phase: "gironi",
+        girone: t.home.charAt(0),
+        home: homeId,        // teamId concreto (null se squadra mancante)
+        away: awayId,
+        slotHome: t.home,    // conservo le sigle per riferimento
+        slotAway: t.away,
+        homeScore: null,
+        awayScore: null,
+        played: false,
+        field: null,
+        events: [],
+      };
+    });
+
     setMatches(newMatches);
-    showToast("Calendario ufficiale generato (" + newMatches.length + " partite)");
+    const created = newMatches.length;
+    const conSquadre = newMatches.filter(m => m.home && m.away).length;
+    showToast("Calendario generato: " + created + " partite (" + conSquadre + " complete)");
   };
 
   const canEdit = role === "staff";
@@ -1958,45 +2009,9 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
   const [filter, setFilter] = useState("ALL"); // ALL | gironi | quarti | semi | finali | "YYYY-MM-DD"
   const [editing, setEditing] = useState(null);
 
-  // Genera le partite dal template (usando i ts dei "slot")
-  // Se in matches c'è già una partita con stessa key (date+time+slotHome+slotAway), preserva i suoi dati
-  // Inoltre permette di applicare overrides: data/ora/campo modificati salvati in /matches
-  const matchesFromTemplate = useMemo(() => {
-    return TOURNAMENT_MATCHES_TEMPLATE.map((tmpl, idx) => {
-      // Key stabile per template (per identificare la partita anche se data/ora cambia)
-      const tmplKey = "match_" + tmpl.phase + "_" + idx;
-      // Cerco se c'è una partita salvata con la stessa "id template" o stesso slot+phase
-      const existing = matches.find(m => m.tmplKey === tmplKey)
-                    || matches.find(m => m.slotHome === tmpl.home && m.slotAway === tmpl.away && m.phase === tmpl.phase);
-      if (existing) {
-        // Conservo i dati salvati ma uso i valori del template come default per i campi vuoti
-        return Object.assign({}, existing, {
-          tmplKey,
-          slotHome: tmpl.home,
-          slotAway: tmpl.away,
-          phase: tmpl.phase,
-          girone: tmpl.phase === "gironi" ? tmpl.home.charAt(0) : null,
-          date: existing.date || tmpl.date,
-          time: existing.time || tmpl.time,
-        });
-      }
-      return {
-        id: tmplKey,
-        tmplKey,
-        slotHome: tmpl.home,
-        slotAway: tmpl.away,
-        phase: tmpl.phase,
-        girone: tmpl.phase === "gironi" ? tmpl.home.charAt(0) : null,
-        date: tmpl.date,
-        time: tmpl.time,
-        homeScore: null,
-        awayScore: null,
-        played: false,
-        field: null,
-        events: [],
-      };
-    });
-  }, [matches]);
+  // Usa solo le partite reali salvate (generate dall'Admin)
+  // matchesFromTemplate è ora un alias di matches per non rompere il resto del codice
+  const matchesFromTemplate = matches;
 
   // Filtraggio
   const filtered = useMemo(() => {
@@ -2039,20 +2054,8 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
   };
 
   // Reset di TUTTI gli override → torna alle date/ore originali del template
-  const resetAllDates = () => {
-    if (!confirm("Ripristinare TUTTE le date/orari originali del calendario? I risultati registrati saranno conservati.")) return;
-    const newMatches = matches.map(m => {
-      // Trovo il template corrispondente
-      const tmplIdx = TOURNAMENT_MATCHES_TEMPLATE.findIndex((t, i) => "match_" + t.phase + "_" + i === m.tmplKey);
-      if (tmplIdx >= 0) {
-        const tmpl = TOURNAMENT_MATCHES_TEMPLATE[tmplIdx];
-        return Object.assign({}, m, { date: tmpl.date, time: tmpl.time, field: null });
-      }
-      return m;
-    });
-    setMatches(newMatches);
-    showToast("Date/orari ripristinati");
-  };
+  // (rimosso resetAllDates: il calendario ora è generato esplicitamente dall'Admin)
+
 
   // Helpers per costruire le righe export
   const buildExportRows = () => {
@@ -2063,8 +2066,13 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
       return ad.localeCompare(bd);
     });
     return ordered.map(m => {
-      const homeT = m.slotHome ? resolveSlot(m.slotHome, teams, matchesFromTemplate) : null;
-      const awayT = m.slotAway ? resolveSlot(m.slotAway, teams, matchesFromTemplate) : null;
+      // Priorità: teamId concreto (home/away), poi slot (fallback)
+      const homeT = m.home
+        ? teams.find(t => t.id === m.home)
+        : (m.slotHome ? resolveSlot(m.slotHome, teams, matchesFromTemplate) : null);
+      const awayT = m.away
+        ? teams.find(t => t.id === m.away)
+        : (m.slotAway ? resolveSlot(m.slotAway, teams, matchesFromTemplate) : null);
       const homeLabel = homeT ? homeT.name : (m.slotHome ? slotLabel(m.slotHome, teams, matchesFromTemplate) : "?");
       const awayLabel = awayT ? awayT.name : (m.slotAway ? slotLabel(m.slotAway, teams, matchesFromTemplate) : "?");
       const td = TOURNAMENT_DATES.find(d => d.iso === m.date);
@@ -2213,21 +2221,28 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
           <div className="subtitle">{playedCount} / {totalCount} partite giocate</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-          <button className="btn btn-sm btn-gold" onClick={exportCalendarPDF} title="Esporta calendario in PDF">📄 PDF</button>
-          <button className="btn btn-sm btn-gold" onClick={exportCalendarExcel} title="Esporta calendario in Excel">📊 Excel</button>
-          {canEdit && (
-            <button className="btn btn-sm" onClick={resetAllDates} title="Ripristina date originali">↺ Reset date</button>
-          )}
+          {totalCount > 0 && <button className="btn btn-sm btn-gold" onClick={exportCalendarPDF} title="Esporta calendario in PDF">📄 PDF</button>}
+          {totalCount > 0 && <button className="btn btn-sm btn-gold" onClick={exportCalendarExcel} title="Esporta calendario in Excel">📊 Excel</button>}
         </div>
       </div>
 
-      <div style={{display:"flex", gap:8, marginBottom: 24, flexWrap:"wrap"}}>
-        <button className={"btn btn-sm " + (filter==="ALL"?"btn-gold":"")} onClick={()=>setFilter("ALL")}>Tutte ({totalCount})</button>
-        <button className={"btn btn-sm " + (filter==="gironi"?"btn-gold":"")} onClick={()=>setFilter("gironi")}>Gironi ({fasiCount.gironi})</button>
-        <button className={"btn btn-sm " + (filter==="quarti"?"btn-gold":"")} onClick={()=>setFilter("quarti")}>Quarti ({fasiCount.quarti})</button>
-        <button className={"btn btn-sm " + (filter==="semi"?"btn-gold":"")} onClick={()=>setFilter("semi")}>Semifinali ({fasiCount.semi})</button>
-        <button className={"btn btn-sm " + (filter==="finali"?"btn-gold":"")} onClick={()=>setFilter("finali")}>Finali ({fasiCount.finali})</button>
-      </div>
+      {totalCount === 0 && (
+        <div className="empty">
+          <div className="empty-icon">📅</div>
+          <h3>Calendario non generato</h3>
+          <p>Vai in <strong>Admin → Genera calendario gironi</strong> per creare le partite a partire dalle squadre nei gironi.</p>
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div style={{display:"flex", gap:8, marginBottom: 24, flexWrap:"wrap"}}>
+          <button className={"btn btn-sm " + (filter==="ALL"?"btn-gold":"")} onClick={()=>setFilter("ALL")}>Tutte ({totalCount})</button>
+          {fasiCount.gironi > 0 && <button className={"btn btn-sm " + (filter==="gironi"?"btn-gold":"")} onClick={()=>setFilter("gironi")}>Gironi ({fasiCount.gironi})</button>}
+          {fasiCount.quarti > 0 && <button className={"btn btn-sm " + (filter==="quarti"?"btn-gold":"")} onClick={()=>setFilter("quarti")}>Quarti ({fasiCount.quarti})</button>}
+          {fasiCount.semi > 0 && <button className={"btn btn-sm " + (filter==="semi"?"btn-gold":"")} onClick={()=>setFilter("semi")}>Semifinali ({fasiCount.semi})</button>}
+          {fasiCount.finali > 0 && <button className={"btn btn-sm " + (filter==="finali"?"btn-gold":"")} onClick={()=>setFilter("finali")}>Finali ({fasiCount.finali})</button>}
+        </div>
+      )}
 
       {Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([date, ms]) => {
         const td = TOURNAMENT_DATES.find(d => d.iso === date);
@@ -2265,22 +2280,23 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
 }
 
 function MatchRow({ match, teams, allMatches, onClick, readOnly }) {
-  // Risolvi le squadre: prima da slot (nuovo formato), poi da home/away come fallback (vecchio)
+  // Priorità: home/away come teamId concreto (nuovo flusso),
+  // poi slotHome/slotAway come sigle da risolvere (vecchio fallback per finali e simili)
   let homeT = null, awayT = null;
   let homeLabel = "?", awayLabel = "?";
-  if (match.slotHome) {
+  if (match.home) {
+    homeT = teams.find(t => t.id === match.home);
+    homeLabel = homeT ? homeT.name : (match.slotHome ? slotLabel(match.slotHome, teams, allMatches || []) : "?");
+  } else if (match.slotHome) {
     homeT = resolveSlot(match.slotHome, teams, allMatches || []);
     homeLabel = homeT ? homeT.name : slotLabel(match.slotHome, teams, allMatches || []);
-  } else if (match.home) {
-    homeT = teams.find(t => t.id === match.home);
-    homeLabel = homeT ? homeT.name : "?";
   }
-  if (match.slotAway) {
+  if (match.away) {
+    awayT = teams.find(t => t.id === match.away);
+    awayLabel = awayT ? awayT.name : (match.slotAway ? slotLabel(match.slotAway, teams, allMatches || []) : "?");
+  } else if (match.slotAway) {
     awayT = resolveSlot(match.slotAway, teams, allMatches || []);
     awayLabel = awayT ? awayT.name : slotLabel(match.slotAway, teams, allMatches || []);
-  } else if (match.away) {
-    awayT = teams.find(t => t.id === match.away);
-    awayLabel = awayT ? awayT.name : "?";
   }
 
   // Formatta data + ora
@@ -2317,13 +2333,13 @@ function MatchRow({ match, teams, allMatches, onClick, readOnly }) {
 }
 
 function MatchEditor({ match, teams, allMatches, onSave, onCancel }) {
-  // Risolvi squadre da slot (nuovo) o teamId (legacy)
-  const homeT = match.slotHome
-    ? resolveSlot(match.slotHome, teams, allMatches || [])
-    : teams.find(t => t.id === match.home);
-  const awayT = match.slotAway
-    ? resolveSlot(match.slotAway, teams, allMatches || [])
-    : teams.find(t => t.id === match.away);
+  // Priorità: home/away come teamId (nuovo flusso), poi slotHome/slotAway (fallback)
+  const homeT = match.home
+    ? teams.find(t => t.id === match.home)
+    : (match.slotHome ? resolveSlot(match.slotHome, teams, allMatches || []) : null);
+  const awayT = match.away
+    ? teams.find(t => t.id === match.away)
+    : (match.slotAway ? resolveSlot(match.slotAway, teams, allMatches || []) : null);
   const homeLabel = homeT ? homeT.name : (match.slotHome ? slotLabel(match.slotHome, teams, allMatches || []) : "?");
   const awayLabel = awayT ? awayT.name : (match.slotAway ? slotLabel(match.slotAway, teams, allMatches || []) : "?");
 
@@ -4391,10 +4407,25 @@ function AdminView({ config, setConfig, teams, setTeams, matches, setMatches, on
         <div className="card">
           <h3 className="display" style={{fontSize:22, marginBottom:12, letterSpacing:"0.04em"}}>Calendario gironi</h3>
           <p style={{fontSize:14, marginBottom:14, color:"var(--ink-soft)"}}>
-            Genera le partite dei gironi. <strong>Sovrascrive i risultati esistenti.</strong>
-            <br/>Squadre assegnate ai gironi: <strong>{teams.filter(t=>t.girone).length}</strong> su {teams.length}
+            Genera le 24 partite della fase a gironi seguendo lo schema ufficiale del torneo (date e orari dall'Excel).
+            L'<strong>ordine di creazione</strong> delle squadre in ogni girone determina chi è A1/A2/A3/A4: la prima squadra messa nel girone A diventa A1, la seconda A2, ecc.
           </p>
-          <button className="btn" onClick={onRegenerate}>Genera / Rigenera calendario</button>
+          <div style={{padding:"10px 12px", background:"var(--cream-soft)", border:"1.5px solid var(--ink)", borderRadius:3, marginBottom:14, fontSize:13, fontFamily:"'JetBrains Mono', monospace"}}>
+            {GIRONE_NAMES.map(g => {
+              const inG = teams.filter(t => t.girone === g);
+              const isOk = inG.length === 4;
+              return (
+                <div key={g} style={{display:"flex", justifyContent:"space-between", padding:"4px 0", color: isOk ? "var(--green-field)" : "var(--terracotta-dark)"}}>
+                  <span>GIRONE {g}:</span>
+                  <span>{inG.length}/4 squadre {isOk ? "✓" : "⚠"}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{fontSize:12, color:"var(--ink-soft)", fontStyle:"italic", marginBottom:14}}>
+            ⚠ La generazione sovrascrive il calendario attuale (risultati inclusi). Le finali non vengono create — saranno aggiunte in seguito.
+          </p>
+          <button className="btn btn-primary" onClick={onRegenerate}>Genera calendario gironi</button>
         </div>
 
         <div className="card">
