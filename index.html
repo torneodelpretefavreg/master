@@ -222,6 +222,23 @@
   .shifts-matrix tr.totals-row td.total-cell.grand-total { background: var(--gold); color: var(--ink); font-size: 32px; border-left: 2px solid var(--ink); }
   .shifts-matrix tr.totals-row td.totals-label { background: var(--ink); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.08em; text-align: left; padding-left: 14px; }
 
+  /* === MAPPATURA PRESENZE E AREE (da sondaggio) === */
+  .mapping-wrap { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 4px; box-shadow: 3px 3px 0 var(--ink); background: var(--paper); }
+  .mapping-table { width: 100%; border-collapse: collapse; }
+  .mapping-table th, .mapping-table td { border: 1px solid rgba(22,26,24,0.12); padding: 6px 8px; text-align: center; }
+  .mapping-table thead th { background: var(--green-deep); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 0.05em; padding: 9px 8px; position: sticky; top: 0; z-index: 4; white-space: nowrap; }
+  .mapping-table th.m-name, .mapping-table td.m-name { text-align: left; font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; min-width: 150px; position: sticky; left: 0; background: var(--cream-soft); z-index: 3; border-right: 2px solid var(--ink); }
+  .mapping-table thead th.m-name { background: var(--ink); z-index: 5; }
+  .mapping-table th.m-date { font-size: 10px; letter-spacing: 0.02em; min-width: 38px; padding: 8px 3px; }
+  .mapping-table td.m-cell { font-size: 12px; font-weight: 700; padding: 4px; }
+  .mapping-table td.m-cell.yes { background: rgba(45,143,90,0.18); color: var(--green-field); }
+  .mapping-table td.m-cell.no { background: repeating-linear-gradient(45deg, transparent 0 5px, rgba(22,26,24,0.045) 5px 10px); color: transparent; }
+  .mapping-table .m-badge { display: inline-block; min-width: 24px; padding: 2px 6px; background: var(--green-field); color: var(--cream); border-radius: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 14px; }
+  .mapping-table .m-badge.zero { background: var(--terracotta); opacity: 0.7; }
+  .mapping-table th.m-area, .mapping-table td.m-area { min-width: 130px; position: sticky; right: 0; background: var(--cream-soft); border-left: 2px solid var(--ink); z-index: 3; }
+  .mapping-table thead th.m-area { background: var(--ink); z-index: 5; }
+  .mapping-table td.m-area select { font-size: 13px; padding: 6px 8px; min-width: 110px; }
+
   /* === MATCH EDITOR - SEZIONE EVENTI === */
   .events-section { border: 1.5px solid var(--ink); border-radius: 4px; background: var(--cream-soft); margin-bottom: 16px; }
   .events-section-head { padding: 10px 14px; background: var(--green-deep); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.06em; border-radius: 3px 3px 0 0; }
@@ -614,6 +631,26 @@ const TOURNAMENT_DATES = [
   { iso: "2026-07-15", label: "Mer 15 lug", phase: "Semifinali" },
   { iso: "2026-07-17", label: "Ven 17 lug", phase: "Finali" },
 ];
+
+// Date per la pianificazione STAFF: oltre alle date torneo includono le 2 serate
+// evento finali (18-19 lug) che non hanno partite ma richiedono comunque copertura.
+const STAFF_DATES = [
+  ...TOURNAMENT_DATES.map(d => ({ iso: d.iso, label: d.label, phase: d.phase })),
+  { iso: "2026-07-18", label: "Sab 18 lug", phase: "Festa" },
+  { iso: "2026-07-19", label: "Dom 19 lug", phase: "Finale Mondiali" },
+];
+
+const MESI_IT = { gennaio:1, febbraio:2, marzo:3, aprile:4, maggio:5, giugno:6, luglio:7, agosto:8, settembre:9, ottobre:10, novembre:11, dicembre:12 };
+// Converte intestazioni tipo "LUNEDI 22 GIUGNO" o "SABATO 18 LUGLIO (FESTA FINALE)" in ISO.
+function parseDataIntestazioneIT(s, year) {
+  if (s == null) return "";
+  const m = String(s).toLowerCase().match(/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/);
+  if (!m) return "";
+  const day = parseInt(m[1], 10);
+  const mon = MESI_IT[m[2]];
+  const yyyy = year || 2026;
+  return yyyy + "-" + String(mon).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+}
 
 // Template ufficiale partite dal calendario 2026 (33 totali: 24 gironi + 4 quarti + 2 semi + 3 finali)
 // Format home/away:
@@ -3757,6 +3794,117 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   // Editor persona staff (per modifica/eliminazione): persona | null
   const [editingStaff, setEditingStaff] = useState(null);
 
+  // Import sondaggio presenze
+  const surveyInputRef = useRef(null);
+  const [importPreview, setImportPreview] = useState(null); // { people:[{name,availability,present}], dateCount, sheet }
+
+  const isAvailable = (s, iso) => !!(s.availability && s.availability[iso]);
+
+  const handleSurveyFile = (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, { type: "array", cellDates: true });
+        const sn = wb.SheetNames.find(n => /sondaggio/i.test(n)) || wb.SheetNames[0];
+        const ws = wb.Sheets[sn];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+        // Trovo la riga intestazione con "NOME E COGNOME"
+        let hIdx = -1, nameCol = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || [];
+          for (let c = 0; c < r.length; c++) {
+            if (typeof r[c] === "string" && /nome e cognome/i.test(r[c])) { hIdx = i; nameCol = c; break; }
+          }
+          if (hIdx >= 0) break;
+        }
+        if (hIdx < 0) { alert('Non ho trovato la tabella delle presenze (intestazione "NOME E COGNOME") nello sheet "' + sn + '".'); return; }
+        const header = rows[hIdx];
+        // Colonne-data: da nameCol+1 fino a "TOTALE" o fine
+        const dateCols = [];
+        for (let c = nameCol + 1; c < header.length; c++) {
+          const h = header[c];
+          if (h == null || String(h).trim() === "") continue;
+          if (/totale/i.test(String(h))) break;
+          const iso = parseDataIntestazioneIT(h, 2026);
+          if (iso) dateCols.push({ col: c, iso });
+        }
+        if (dateCols.length === 0) { alert("Nessuna colonna-data riconosciuta nell'intestazione del sondaggio."); return; }
+        // Persone
+        const people = [];
+        for (let i = hIdx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const raw = r[nameCol];
+          if (raw == null) continue;
+          const name = String(raw).trim();
+          if (!name) continue;
+          if (/^totale/i.test(name)) break;
+          const availability = {};
+          dateCols.forEach(dc => {
+            const cell = r[dc.col];
+            if (cell != null && String(cell).trim().toUpperCase() === "SI") availability[dc.iso] = true;
+          });
+          people.push({ name, availability, present: Object.keys(availability).length });
+        }
+        if (people.length === 0) { alert("Nessuna persona trovata nella tabella del sondaggio."); return; }
+        setImportPreview({ people, dateCount: dateCols.length, sheet: sn });
+      } catch (err) {
+        alert("Errore lettura file: " + err.message);
+      }
+    };
+    reader.onerror = () => alert("Impossibile leggere il file");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyImport = () => {
+    if (!importPreview) return;
+    const byName = {};
+    staff.forEach(s => { byName[s.name.trim().toLowerCase()] = s; });
+    const newStaff = staff.slice();
+    let added = 0, updated = 0;
+    importPreview.people.forEach(p => {
+      const key = p.name.toLowerCase();
+      const ex = byName[key];
+      if (ex) {
+        const idx = newStaff.findIndex(s => s.id === ex.id);
+        newStaff[idx] = Object.assign({}, ex, { availability: Object.assign({}, ex.availability || {}, p.availability) });
+        updated++;
+      } else {
+        const ns = { id: uid(), name: p.name, preferredPosition: "", note: "", availability: p.availability };
+        newStaff.push(ns); byName[key] = ns; added++;
+      }
+    });
+    setStaff(newStaff);
+    setImportPreview(null);
+    showToast(added + " aggiunti · " + updated + " aggiornati");
+  };
+
+  const setStaffArea = (id, posId) => {
+    setStaff(staff.map(s => s.id === id ? Object.assign({}, s, { preferredPosition: posId }) : s));
+  };
+
+  const populateFromMapping = () => {
+    const assignable = staff.filter(s => s.preferredPosition);
+    if (assignable.length === 0) { alert("Nessuna persona ha un'area assegnata.\nImposta l'Area nella colonna a destra di ogni persona nella tabella di mappatura."); return; }
+    if (!confirm("Popolo i turni dalla mappatura?\n\nOgni persona con un'area verrà assegnata a quell'area in TUTTE le serate in cui risulta disponibile (✓ nel sondaggio).\n\nLe assegnazioni già presenti restano: vengono solo aggiunte quelle mancanti.")) return;
+    const newShifts = Object.assign({}, shifts);
+    let count = 0;
+    STAFF_DATES.forEach(d => {
+      assignable.forEach(s => {
+        if (!isAvailable(s, d.iso)) return;
+        const key = shiftKey(d.iso, s.preferredPosition);
+        const v = newShifts[key];
+        const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
+        if (!arr.includes(s.id)) { newShifts[key] = [...arr, s.id]; count++; }
+      });
+    });
+    setShifts(newShifts);
+    showToast(count + " assegnazioni create dalla mappatura");
+  };
+
   // Helpers: ogni cella è un ARRAY di staff IDs
   const shiftKey = (iso, posId) => iso + "::" + posId;
   const getAssigned = (iso, posId) => {
@@ -3865,7 +4013,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     const arr = typeof v === "string" ? [v] : (Array.isArray(v) ? v : []);
     return arr.length > 0;
   }).length;
-  const totalCells = TOURNAMENT_DATES.length * positions.length;
+  const totalCells = STAFF_DATES.length * positions.length;
 
   // Lookup map per nome staff
   const staffById = useMemo(() => {
@@ -3879,6 +4027,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   const pickerAvailable = picker ? staff.filter(s => !pickerCurrent.includes(s.id)) : [];
   // Ordino i disponibili mettendo prima chi ha quella posizione come preferita
   const pickerSorted = picker ? pickerAvailable.slice().sort((a, b) => {
+    const aAv = isAvailable(a, picker.iso) ? 0 : 1;
+    const bAv = isAvailable(b, picker.iso) ? 0 : 1;
+    if (aAv !== bAv) return aAv - bAv;
     const aPref = a.preferredPosition === picker.posId ? 0 : 1;
     const bPref = b.preferredPosition === picker.posId ? 0 : 1;
     if (aPref !== bPref) return aPref - bPref;
@@ -3903,9 +4054,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       <div className="shifts-panel">
         <div className="shifts-panel-head">
           <h3>Staff ({staff.length})</h3>
-          <button className="btn btn-sm btn-primary" onClick={() => setAddingStaff(!addingStaff)}>
-            {addingStaff ? "Annulla" : "+ Aggiungi persona"}
-          </button>
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            <input ref={surveyInputRef} type="file" accept=".xlsx,.xls" onChange={handleSurveyFile} style={{display:"none"}} />
+            <button className="btn btn-sm btn-gold" onClick={() => surveyInputRef.current && surveyInputRef.current.click()} title="Importa presenze dallo sheet Sondaggio (.xlsx)">📥 Importa sondaggio</button>
+            <button className="btn btn-sm btn-primary" onClick={() => setAddingStaff(!addingStaff)}>
+              {addingStaff ? "Annulla" : "+ Aggiungi persona"}
+            </button>
+          </div>
         </div>
 
         {addingStaff && (
@@ -3987,6 +4142,53 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
         </div>
       </div>
 
+      {/* PANNELLO MAPPATURA PRESENZE E AREE (da sondaggio) */}
+      {staff.length > 0 && (
+        <div className="shifts-panel">
+          <div className="shifts-panel-head">
+            <h3>Mappatura presenze e aree</h3>
+            <button className="btn btn-sm btn-gold" onClick={populateFromMapping} title="Assegna ogni persona alla sua area in tutte le serate disponibili">⚡ Popola turni dalla mappatura</button>
+          </div>
+          <p style={{fontSize:13, color:"var(--ink-soft)", marginBottom:12, fontStyle:"italic"}}>
+            ✓ = serata in cui la persona è disponibile (dal sondaggio). Scegli l'<b>Area</b> in cui collocarla nell'ultima colonna; le aree si gestiscono nel pannello “Posizioni” qui sopra. Poi premi “Popola turni” per riempire la matrice in basso (resta modificabile a mano).
+          </p>
+          <div className="mapping-wrap">
+            <table className="mapping-table">
+              <thead>
+                <tr>
+                  <th className="m-name">Persona</th>
+                  <th className="m-tot">Tot</th>
+                  {STAFF_DATES.map(d => (
+                    <th key={d.iso} className="m-date" title={d.label}>{d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}</th>
+                  ))}
+                  <th className="m-area">Area</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staff.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
+                  const cnt = STAFF_DATES.filter(d => isAvailable(s, d.iso)).length;
+                  return (
+                    <tr key={s.id}>
+                      <td className="m-name">{s.name}</td>
+                      <td className="m-tot"><span className={"m-badge " + (cnt === 0 ? "zero" : "")}>{cnt}</span></td>
+                      {STAFF_DATES.map(d => (
+                        <td key={d.iso} className={"m-cell " + (isAvailable(s, d.iso) ? "yes" : "no")} title={d.label}>{isAvailable(s, d.iso) ? "✓" : ""}</td>
+                      ))}
+                      <td className="m-area">
+                        <select value={s.preferredPosition || ""} onChange={e => setStaffArea(s.id, e.target.value)}>
+                          <option value="">—</option>
+                          {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* MATRICE TURNI */}
       {staff.length === 0 ? (
         <div className="empty">
@@ -4007,7 +4209,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               </tr>
             </thead>
             <tbody>
-              {TOURNAMENT_DATES.map(d => {
+              {STAFF_DATES.map(d => {
                 // Totale per riga (questa serata)
                 const rowTotal = positions.reduce((acc, p) => acc + getAssigned(d.iso, p.id).length, 0);
                 return (
@@ -4050,7 +4252,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               <tr className="totals-row">
                 <td className="date-cell totals-label">Totale per area</td>
                 {positions.map(p => {
-                  const colTotal = TOURNAMENT_DATES.reduce((acc, d) => acc + getAssigned(d.iso, p.id).length, 0);
+                  const colTotal = STAFF_DATES.reduce((acc, d) => acc + getAssigned(d.iso, p.id).length, 0);
                   return (
                     <td key={p.id} className={"total-cell " + (colTotal === 0 ? "zero" : "")}>{colTotal}</td>
                   );
@@ -4089,7 +4291,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             <div className="modal-head">
               <h2>Aggiungi a {positions.find(p => p.id === picker.posId) ? positions.find(p => p.id === picker.posId).name : ""}</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                {TOURNAMENT_DATES.find(d => d.iso === picker.iso) ? TOURNAMENT_DATES.find(d => d.iso === picker.iso).label : ""}
+                {STAFF_DATES.find(d => d.iso === picker.iso) ? STAFF_DATES.find(d => d.iso === picker.iso).label : ""}
                 {pickerCurrent.length > 0 && " · " + pickerCurrent.length + " già assegnati"}
               </div>
             </div>
@@ -4121,6 +4323,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                         {isPref && <span style={{marginLeft:8, fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"var(--gold-deep)", letterSpacing:"0.1em"}}>★ DESIDERATA</span>}
                       </span>
                       <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color:"var(--ink-soft)"}}>
+                        {!isAvailable(s, picker.iso) && <span style={{marginRight:8, color:"var(--terracotta-dark)", letterSpacing:"0.08em"}}>NON DISP.</span>}
                         {staffStats[s.id] || 0} turni
                       </span>
                     </button>
@@ -4130,6 +4333,50 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             )}
             <div className="modal-actions">
               <button className="btn" onClick={() => setPicker(null)}>Chiudi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE CONFERMA IMPORT SONDAGGIO */}
+      {importPreview && (
+        <div className="modal-overlay" onClick={() => setImportPreview(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: 560}}>
+            <div className="modal-head">
+              <h2>Importa presenze dal sondaggio</h2>
+              <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
+                Foglio “{importPreview.sheet}” · {importPreview.people.length} persone · {importPreview.dateCount} serate rilevate
+              </div>
+            </div>
+            <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
+              <table className="mapping-table" style={{minWidth:0}}>
+                <thead>
+                  <tr>
+                    <th className="m-name">Persona</th>
+                    <th className="m-tot">Serate disp.</th>
+                    <th className="m-tot">Stato</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.people.map((p, i) => {
+                    const exists = staff.some(s => s.name.trim().toLowerCase() === p.name.toLowerCase());
+                    return (
+                      <tr key={i}>
+                        <td className="m-name">{p.name}</td>
+                        <td className="m-tot"><span className={"m-badge " + (p.present === 0 ? "zero" : "")}>{p.present}</span></td>
+                        <td className="m-tot" style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color: exists ? "var(--gold-deep)" : "var(--green-field)"}}>{exists ? "aggiorna" : "nuovo"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p style={{fontSize:12.5, color:"var(--ink-soft)", marginTop:10}}>
+              Le persone già presenti vengono aggiornate con le disponibilità del sondaggio (confronto nomi senza distinzione di maiuscole/minuscole). In questo passaggio non viene modificata nessuna assegnazione dei turni.
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setImportPreview(null)}>Annulla</button>
+              <button className="btn btn-gold" onClick={applyImport}>Importa {importPreview.people.length} persone</button>
             </div>
           </div>
         </div>
