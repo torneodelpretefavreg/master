@@ -239,6 +239,37 @@
   .mapping-table thead th.m-area { background: var(--ink); z-index: 5; }
   .mapping-table td.m-area select { font-size: 13px; padding: 6px 8px; min-width: 110px; }
 
+  /* === SOTTO-TAB TURNI / ASSICURAZIONI-MAGLIE === */
+  .shift-subtabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .shift-subtab { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 0.05em; padding: 10px 20px; background: var(--cream-soft); border: 1.5px solid var(--ink); cursor: pointer; color: var(--ink-soft); border-radius: 4px; box-shadow: 2px 2px 0 var(--ink); }
+  .shift-subtab:hover { color: var(--ink); }
+  .shift-subtab.active { background: var(--green-deep); color: var(--gold); }
+  /* Tabelle assicurazioni / maglie (riuso struttura mapping) */
+  .extra-table-wrap { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 4px; box-shadow: 3px 3px 0 var(--ink); background: var(--paper); }
+  .extra-table { width: 100%; border-collapse: collapse; }
+  .extra-table th, .extra-table td { border: 1px solid rgba(22,26,24,0.12); padding: 7px 9px; text-align: left; font-size: 13.5px; vertical-align: middle; }
+  .extra-table thead th { background: var(--green-deep); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 0.05em; white-space: nowrap; text-align: left; }
+  .extra-table th.c, .extra-table td.c { text-align: center; }
+  .extra-table input[type=text], .extra-table input:not([type]), .extra-table select { font-size: 13px; padding: 5px 7px; width: 100%; min-width: 70px; }
+  .extra-table input.size { min-width: 54px; width: 70px; text-transform: uppercase; }
+  .extra-table input.qty { min-width: 48px; width: 60px; text-align: center; }
+  .extra-table input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+  .extra-table .row-del { background: none; border: none; cursor: pointer; color: var(--terracotta-dark); font-size: 15px; opacity: 0.6; }
+  .extra-table .row-del:hover { opacity: 1; }
+  .extra-table tr.insured-row { background: rgba(45,143,90,0.10); }
+  .extra-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 4px 0 16px; }
+  .extra-card { background: var(--cream-soft); border: 1.5px solid var(--ink); border-radius: 3px; padding: 10px 12px; box-shadow: 2px 2px 0 var(--ink); }
+  .extra-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+  .extra-card .val { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1; color: var(--green-deep); margin-top: 3px; }
+  .extra-card.cost .val { color: var(--terracotta-dark); }
+  .extra-card.highlight { background: var(--gold); }
+  .shirt-item-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px dashed rgba(22,26,24,0.15); }
+  .shirt-item-row:last-child { border-bottom: none; }
+  .shirt-item-row select, .shirt-item-row input { font-size: 13px; padding: 5px 8px; }
+  .shirt-item-row .lbl-mini { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.05em; }
+  .order-pill { display: inline-flex; justify-content: space-between; gap: 14px; background: var(--cream-soft); border: 1.5px solid var(--ink); border-radius: 20px; padding: 5px 14px; font-size: 13px; }
+  .order-pill b { font-family: 'Bebas Neue', sans-serif; font-size: 17px; color: var(--green-field); }
+
   /* === MATCH EDITOR - SEZIONE EVENTI === */
   .events-section { border: 1.5px solid var(--ink); border-radius: 4px; background: var(--cream-soft); margin-bottom: 16px; }
   .events-section-head { padding: 10px 14px; background: var(--green-deep); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.06em; border-radius: 3px 3px 0 0; }
@@ -1011,6 +1042,8 @@ function App() {
   const [staff, setStaff] = useFirebaseValue(fb.db, "staff", []);
   const [positions, setPositions] = useFirebaseValue(fb.db, "positions", DEFAULT_POSITIONS);
   const [shifts, setShifts] = useFirebaseValue(fb.db, "shifts", {});
+  const [insurance, setInsurance] = useFirebaseValue(fb.db, "insurance", []);
+  const [shirts, setShirts] = useFirebaseValue(fb.db, "shirts", []);
   const [inventory, setInventory] = useFirebaseValue(fb.db, "inventory", []);
   // Quote pagamenti (modificabili da Admin)
   const [quoteConfig, setQuoteConfig] = useFirebaseValue(fb.db, "quoteConfig", {
@@ -1113,7 +1146,7 @@ function App() {
         {view === "gironi" && <GironiView teams={teams} matches={matches} />}
         {view === "calendario" && <CalendarView teams={teams} matches={matches} setMatches={setMatches} canEdit={canEdit} showToast={showToast} />}
         {view === "statistiche" && <StatsView teams={teams} matches={matches} />}
-        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} showToast={showToast} />}
+        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} insurance={insurance} setInsurance={setInsurance} shirts={shirts} setShirts={setShirts} showToast={showToast} />}
         {view === "turni" && !canEdit && (
           <div className="empty">
             <div className="empty-icon">🔒</div>
@@ -3780,7 +3813,8 @@ function CassaView({ db }) {
 // =================================================================
 // SHIFTS / TURNI STAFF
 // =================================================================
-function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, showToast }) {
+function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, insurance, setInsurance, shirts, setShirts, showToast }) {
+  const [subTab, setSubTab] = useState("turni"); // "turni" | "extra"
   const [addingStaff, setAddingStaff] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPreferred, setNewPreferred] = useState("");
@@ -3850,7 +3884,33 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           people.push({ name, availability, present: Object.keys(availability).length });
         }
         if (people.length === 0) { alert("Nessuna persona trovata nella tabella del sondaggio."); return; }
-        setImportPreview({ people, dateCount: dateCols.length, sheet: sn });
+        // Seconda tabella "MAPPATURA PRESENZE E RUOLI": ricavo l'area per persona.
+        // Header con celle "Ruolo"; la persona sta nella colonna immediatamente a sinistra di ogni "Ruolo".
+        let h2 = -1;
+        for (let i = hIdx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          if (r.some(c => typeof c === "string" && /^ruolo$/i.test(c.trim()))) { h2 = i; break; }
+        }
+        const areaByName = {};
+        if (h2 >= 0) {
+          const hr2 = rows[h2] || [];
+          const ruoloCols = [];
+          for (let c = 0; c < hr2.length; c++) {
+            if (typeof hr2[c] === "string" && /^ruolo$/i.test(hr2[c].trim())) ruoloCols.push(c);
+          }
+          for (let i = h2 + 1; i < rows.length; i++) {
+            const r = rows[i] || [];
+            ruoloCols.forEach(rc => {
+              const nm = r[rc - 1], ru = r[rc];
+              if (nm != null && String(nm).trim() && ru != null && String(ru).trim()) {
+                const k = String(nm).trim().toLowerCase();
+                if (!areaByName[k]) areaByName[k] = String(ru).trim();
+              }
+            });
+          }
+        }
+        people.forEach(p => { p.area = areaByName[p.name.toLowerCase()] || ""; });
+        setImportPreview({ people, dateCount: dateCols.length, sheet: sn, withArea: Object.keys(areaByName).length });
       } catch (err) {
         alert("Errore lettura file: " + err.message);
       }
@@ -3861,40 +3921,122 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
 
   const applyImport = () => {
     if (!importPreview) return;
-    const byName = {};
-    staff.forEach(s => { byName[s.name.trim().toLowerCase()] = s; });
-    const newStaff = staff.slice();
-    let added = 0, updated = 0;
-    importPreview.people.forEach(p => {
-      const key = p.name.toLowerCase();
-      const ex = byName[key];
-      if (ex) {
-        const idx = newStaff.findIndex(s => s.id === ex.id);
-        newStaff[idx] = Object.assign({}, ex, { availability: Object.assign({}, ex.availability || {}, p.availability) });
-        updated++;
-      } else {
-        const ns = { id: uid(), name: p.name, preferredPosition: "", note: "", availability: p.availability };
-        newStaff.push(ns); byName[key] = ns; added++;
-      }
+    // Reset pulito: lo staff e i turni vengono ricostruiti interamente dal sondaggio.
+    // Mappo l'area (ruolo) dell'Excel su una posizione esistente (per nome); se non esiste la creo.
+    const colors = ["#c8553d", "#1a5d3a", "#b8870f", "#2d8f5a", "#7a5cab", "#4a6fa5", "#a04668", "#5d8a4e"];
+    const posByName = {};
+    let newPositions = positions.slice();
+    newPositions.forEach(p => { posByName[p.name.trim().toLowerCase()] = p.id; });
+    const resolveArea = (areaName) => {
+      if (!areaName) return "";
+      const k = areaName.trim().toLowerCase();
+      if (posByName[k]) return posByName[k];
+      const used = newPositions.map(p => p.color);
+      const color = colors.find(c => !used.includes(c)) || "#555";
+      const np = { id: "pos_" + uid(), name: areaName.trim(), color };
+      newPositions.push(np); posByName[k] = np.id;
+      return np.id;
+    };
+    const newStaff = importPreview.people.map(p => ({
+      id: uid(), name: p.name, note: "",
+      availability: p.availability || {},
+      preferredPosition: resolveArea(p.area),
+    }));
+    // Auto-popolo la matrice: ogni persona nella sua area, in tutte le serate disponibili.
+    const validPosIds = new Set(newPositions.map(p => p.id));
+    const newShifts = {};
+    let assigned = 0;
+    STAFF_DATES.forEach(d => {
+      newStaff.forEach(s => {
+        if (!s.preferredPosition || !validPosIds.has(s.preferredPosition)) return;
+        if (!(s.availability && s.availability[d.iso])) return;
+        const key = shiftKey(d.iso, s.preferredPosition);
+        if (!newShifts[key]) newShifts[key] = [];
+        newShifts[key].push(s.id); assigned++;
+      });
     });
+    if (newPositions.length !== positions.length) setPositions(newPositions);
     setStaff(newStaff);
+    setShifts(newShifts);
     setImportPreview(null);
-    showToast(added + " aggiunti · " + updated + " aggiornati");
+    const withoutArea = newStaff.filter(s => !s.preferredPosition).length;
+    showToast(newStaff.length + " persone · " + assigned + " assegnazioni" + (withoutArea ? " · " + withoutArea + " senza area" : ""));
   };
 
   const setStaffArea = (id, posId) => {
     setStaff(staff.map(s => s.id === id ? Object.assign({}, s, { preferredPosition: posId }) : s));
   };
 
+  // Export matrice turni (serate × aree con i nomi)
+  const exportShiftsExcel = () => {
+    try {
+      const aoa = [["Serata", ...positions.map(p => p.name)]];
+      STAFF_DATES.forEach(d => {
+        const row = [d.label];
+        positions.forEach(p => {
+          const names = getAssigned(d.iso, p.id).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
+          row.push(names.join(", "));
+        });
+        aoa.push(row);
+      });
+      const tot = ["Totale per area"];
+      positions.forEach(p => { tot.push(STAFF_DATES.reduce((a, d) => a + getAssigned(d.iso, p.id).length, 0)); });
+      aoa.push(tot);
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 16 }, ...positions.map(() => ({ wch: 24 }))];
+      XLSX.utils.book_append_sheet(wb, ws, "Turni");
+      XLSX.writeFile(wb, "TdP-Turni-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+      showToast("Excel turni esportato");
+    } catch (e) { alert("Errore export Excel: " + e.message); }
+  };
+
+  const exportShiftsPDF = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Turni Staff", 14, 16);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
+      doc.setTextColor(0);
+      const head = [["Serata", ...positions.map(p => p.name)]];
+      const body = STAFF_DATES.map(d => {
+        const row = [d.label];
+        positions.forEach(p => {
+          const names = getAssigned(d.iso, p.id).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
+          row.push(names.join("\n"));
+        });
+        return row;
+      });
+      doc.autoTable({
+        startY: 28, head, body, theme: "grid",
+        styles: { fontSize: 9, cellPadding: 2, valign: "top", lineColor: [180, 180, 180] },
+        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold", halign: "center" },
+        columnStyles: { 0: { cellWidth: 26, fontStyle: "bold", fillColor: [240, 234, 199] } },
+        margin: { left: 14, right: 14 },
+      });
+      doc.save("TdP-Turni-" + new Date().toISOString().slice(0, 10) + ".pdf");
+      showToast("PDF turni esportato");
+    } catch (e) { alert("Errore export PDF: " + e.message); }
+  };
+
   const populateFromMapping = () => {
-    const assignable = staff.filter(s => s.preferredPosition);
-    if (assignable.length === 0) { alert("Nessuna persona ha un'area assegnata.\nImposta l'Area nella colonna a destra di ogni persona nella tabella di mappatura."); return; }
+    const validPosIds = new Set(positions.map(p => p.id));
+    const withArea = staff.filter(s => s.preferredPosition);
+    const noArea = staff.length - withArea.length;
+    // Persone con area non più esistente (orfana)
+    const orphanArea = withArea.filter(s => !validPosIds.has(s.preferredPosition));
+    const assignable = withArea.filter(s => validPosIds.has(s.preferredPosition));
+    if (assignable.length === 0) { alert("Nessuna persona ha un'area valida assegnata.\nImposta l'Area nell'ultima colonna della tabella di mappatura."); return; }
     if (!confirm("Popolo i turni dalla mappatura?\n\nOgni persona con un'area verrà assegnata a quell'area in TUTTE le serate in cui risulta disponibile (✓ nel sondaggio).\n\nLe assegnazioni già presenti restano: vengono solo aggiunte quelle mancanti.")) return;
     const newShifts = Object.assign({}, shifts);
     let count = 0;
-    STAFF_DATES.forEach(d => {
-      assignable.forEach(s => {
-        if (!isAvailable(s, d.iso)) return;
+    const skippedNoAvail = [];
+    assignable.forEach(s => {
+      const availDates = STAFF_DATES.filter(d => isAvailable(s, d.iso));
+      if (availDates.length === 0) { skippedNoAvail.push(s.name); return; }
+      availDates.forEach(d => {
         const key = shiftKey(d.iso, s.preferredPosition);
         const v = newShifts[key];
         const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
@@ -3902,7 +4044,18 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       });
     });
     setShifts(newShifts);
-    showToast(count + " assegnazioni create dalla mappatura");
+    // Riepilogo trasparente
+    const parts = [count + " assegnazioni create"];
+    if (skippedNoAvail.length) parts.push(skippedNoAvail.length + " salt." + (skippedNoAvail.length === 1 ? "a (0 disponibilità)" : "e (0 disponibilità)"));
+    if (noArea > 0) parts.push(noArea + " senza area");
+    if (orphanArea.length) parts.push(orphanArea.length + " con area eliminata");
+    showToast(parts.join(" · "));
+    if (skippedNoAvail.length || orphanArea.length) {
+      let msg = "Popolamento completato: " + count + " assegnazioni.\n";
+      if (skippedNoAvail.length) msg += "\nNON piazzate (nessuna serata disponibile nel sondaggio):\n- " + skippedNoAvail.join("\n- ");
+      if (orphanArea.length) msg += "\n\nArea non più esistente (riassegnala):\n- " + orphanArea.map(s => s.name).join("\n- ");
+      alert(msg);
+    }
   };
 
   // Helpers: ogni cella è un ARRAY di staff IDs
@@ -3984,6 +4137,10 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     Object.entries(shifts).forEach(([k, v]) => { if (!k.endsWith("::" + posId)) newShifts[k] = v; });
     setShifts(newShifts);
     setPositions(positions.filter(p => p.id !== posId));
+    // Ripulisco l'area delle persone che puntavano a questa posizione (evita aree "orfane")
+    if (staff.some(s => s.preferredPosition === posId)) {
+      setStaff(staff.map(s => s.preferredPosition === posId ? Object.assign({}, s, { preferredPosition: "" }) : s));
+    }
     showToast("Posizione rimossa");
   };
 
@@ -4038,6 +4195,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
 
   return (
     <>
+      <div className="shift-subtabs">
+        <button className={"shift-subtab " + (subTab === "turni" ? "active" : "")} onClick={() => setSubTab("turni")}>Turni staff</button>
+        <button className={"shift-subtab " + (subTab === "extra" ? "active" : "")} onClick={() => setSubTab("extra")}>Assicurazioni &amp; Maglie</button>
+      </div>
+
+      {subTab === "turni" && (
+      <>
       <div className="section-head">
         <div>
           <h1>Turni Staff</h1>
@@ -4046,6 +4210,8 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           </div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+          {staff.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShiftsPDF} title="Esporta la tabella turni in PDF">📄 PDF</button>}
+          {staff.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShiftsExcel} title="Esporta la tabella turni in Excel">📊 Excel</button>}
           {totalAssignments > 0 && <button className="btn btn-sm btn-danger" onClick={clearAllShifts}>Svuota tutto</button>}
         </div>
       </div>
@@ -4345,7 +4511,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             <div className="modal-head">
               <h2>Importa presenze dal sondaggio</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                Foglio “{importPreview.sheet}” · {importPreview.people.length} persone · {importPreview.dateCount} serate rilevate
+                Foglio “{importPreview.sheet}” · {importPreview.people.length} persone · {importPreview.dateCount} serate · {importPreview.withArea || 0} aree dall'Excel
               </div>
             </div>
             <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
@@ -4353,26 +4519,23 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                 <thead>
                   <tr>
                     <th className="m-name">Persona</th>
-                    <th className="m-tot">Serate disp.</th>
-                    <th className="m-tot">Stato</th>
+                    <th className="m-tot">Serate</th>
+                    <th>Area (Excel)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {importPreview.people.map((p, i) => {
-                    const exists = staff.some(s => s.name.trim().toLowerCase() === p.name.toLowerCase());
-                    return (
-                      <tr key={i}>
-                        <td className="m-name">{p.name}</td>
-                        <td className="m-tot"><span className={"m-badge " + (p.present === 0 ? "zero" : "")}>{p.present}</span></td>
-                        <td className="m-tot" style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color: exists ? "var(--gold-deep)" : "var(--green-field)"}}>{exists ? "aggiorna" : "nuovo"}</td>
-                      </tr>
-                    );
-                  })}
+                  {importPreview.people.map((p, i) => (
+                    <tr key={i}>
+                      <td className="m-name">{p.name}</td>
+                      <td className="m-tot"><span className={"m-badge " + (p.present === 0 ? "zero" : "")}>{p.present}</span></td>
+                      <td style={{padding:"4px 10px", fontSize:13, color: p.area ? "var(--green-deep)" : "var(--ink-soft)", fontStyle: p.area ? "normal" : "italic"}}>{p.area || "—"}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-            <p style={{fontSize:12.5, color:"var(--ink-soft)", marginTop:10}}>
-              Le persone già presenti vengono aggiornate con le disponibilità del sondaggio (confronto nomi senza distinzione di maiuscole/minuscole). In questo passaggio non viene modificata nessuna assegnazione dei turni.
+            <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:10}}>
+              ⚠ L'import <b>ricostruisce da zero</b> staff e turni dal sondaggio: chi ha un'area assegnata nell'Excel viene piazzato automaticamente in tutte le serate disponibili. Potrai poi modificare le assegnazioni nell'ultima tabella.
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setImportPreview(null)}>Annulla</button>
@@ -4392,6 +4555,478 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           onDelete={() => removeStaff(editingStaff.id)}
           onCancel={() => setEditingStaff(null)}
         />
+      )}
+      </>
+      )}
+
+      {subTab === "extra" && (
+        <AssicurazioniMaglieView
+          insurance={insurance} setInsurance={setInsurance}
+          shirts={shirts} setShirts={setShirts}
+          showToast={showToast}
+        />
+      )}
+    </>
+  );
+}
+
+function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, showToast }) {
+  const [tab, setTab] = useState("assicurazioni"); // "assicurazioni" | "maglie"
+  const insInputRef = useRef(null);
+  const shirtInputRef = useRef(null);
+  const [insPreview, setInsPreview] = useState(null);
+  const [shirtPreview, setShirtPreview] = useState(null);
+  const [perPerson, setPerPerson] = useState(10);
+
+  // Trova la riga intestazione cercando le etichette indicate (richiede almeno "name")
+  const findHeaderRow = (rows, labelRegexes) => {
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const cols = {};
+      Object.entries(labelRegexes).forEach(([key, rx]) => {
+        for (let c = 0; c < r.length; c++) {
+          if (typeof r[c] === "string" && rx.test(r[c])) { cols[key] = c; break; }
+        }
+      });
+      if (cols.name != null) return { idx: i, cols };
+    }
+    return null;
+  };
+
+  // ====== ASSICURAZIONI ======
+  const handleInsFile = (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array", cellDates: true });
+        const sn = wb.SheetNames.find(n => /assicuraz/i.test(n)) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
+        const hr = findHeaderRow(rows, {
+          insured: /gi[àa]\s*assicurat/i, name: /nome e cognome/i, birthDate: /data di nascita/i,
+          birthPlace: /luogo di nascita/i, address: /indirizzo/i, residence: /residenza/i, fiscalCode: /codice fiscale/i,
+        });
+        if (!hr) { alert('Non ho trovato la colonna "Nome e cognome" nello sheet "' + sn + '".'); return; }
+        const get = (r, k) => (hr.cols[k] != null && r[hr.cols[k]] != null ? String(r[hr.cols[k]]).trim() : "");
+        const people = [];
+        for (let i = hr.idx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const name = get(r, "name");
+          if (!name) continue;
+          if (/^totale/i.test(name)) break;
+          const insuredCell = hr.cols.insured != null ? r[hr.cols.insured] : null;
+          people.push({
+            name, birthDate: get(r, "birthDate"), birthPlace: get(r, "birthPlace"),
+            address: get(r, "address"), residence: get(r, "residence"), fiscalCode: get(r, "fiscalCode").toUpperCase(),
+            insured: insuredCell != null && String(insuredCell).trim() !== "",
+          });
+        }
+        if (!people.length) { alert("Nessun nominativo trovato nel foglio."); return; }
+        setInsPreview({ people, sheet: sn });
+      } catch (err) { alert("Errore lettura file: " + err.message); }
+    };
+    reader.onerror = () => alert("Impossibile leggere il file");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyInsImport = () => {
+    if (!insPreview) return;
+    const byName = {}; insurance.forEach(p => { byName[p.name.trim().toLowerCase()] = p; });
+    const list = insurance.slice(); let added = 0, updated = 0;
+    insPreview.people.forEach(p => {
+      const ex = byName[p.name.toLowerCase()];
+      if (ex) {
+        const idx = list.findIndex(x => x.id === ex.id);
+        list[idx] = Object.assign({}, ex, p, { id: ex.id, insured: ex.insured || p.insured });
+        updated++;
+      } else { const np = Object.assign({ id: uid() }, p); list.push(np); byName[p.name.toLowerCase()] = np; added++; }
+    });
+    setInsurance(list); setInsPreview(null);
+    showToast(added + " aggiunti · " + updated + " aggiornati");
+  };
+
+  const toggleInsured = (id) => setInsurance(insurance.map(p => p.id === id ? Object.assign({}, p, { insured: !p.insured }) : p));
+  const removeIns = (id) => { if (!confirm("Rimuovere questo nominativo dalla lista assicurazioni?")) return; setInsurance(insurance.filter(p => p.id !== id)); };
+  const addInsRow = () => setInsurance([...insurance, { id: uid(), name: "", birthDate: "", birthPlace: "", address: "", residence: "", fiscalCode: "", insured: false }]);
+  const updateIns = (id, patch) => setInsurance(insurance.map(p => p.id === id ? Object.assign({}, p, patch) : p));
+
+  const insTotals = useMemo(() => {
+    const total = insurance.length;
+    const already = insurance.filter(p => p.insured).length;
+    const toInsure = total - already;
+    return { total, already, toInsure, cost: toInsure * (Number(perPerson) || 0) };
+  }, [insurance, perPerson]);
+
+  const exportInsExcel = () => {
+    try {
+      const aoa = [["Già assicurato", "Nome e cognome", "Data di nascita", "Luogo di nascita", "Indirizzo", "Residenza", "Codice Fiscale"]];
+      insurance.forEach(p => aoa.push([p.insured ? "SI" : "", p.name, p.birthDate || "", p.birthPlace || "", p.address || "", p.residence || "", p.fiscalCode || ""]));
+      aoa.push([]);
+      aoa.push(["Totale nominativi", insTotals.total]);
+      aoa.push(["Già assicurati", insTotals.already]);
+      aoa.push(["Da assicurare", insTotals.toInsure]);
+      aoa.push(["Costo (" + perPerson + " EUR/persona)", insTotals.cost]);
+      const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 18 }, { wch: 28 }, { wch: 14 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Assicurazioni");
+      XLSX.writeFile(wb, "TdP-Assicurazioni-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+      showToast("Excel assicurazioni esportato");
+    } catch (e) { alert("Errore export: " + e.message); }
+  };
+
+  const exportInsPDF = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Assicurazioni", 14, 16);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
+      doc.setTextColor(0);
+      const head = [["Assic.", "Nome e cognome", "Nascita", "Luogo", "Residenza", "Codice Fiscale"]];
+      const body = insurance.map(p => [p.insured ? "SI" : "", p.name || "", p.birthDate || "", p.birthPlace || "", p.residence || "", p.fiscalCode || ""]);
+      doc.autoTable({
+        startY: 28, head, body, theme: "grid",
+        styles: { fontSize: 9, cellPadding: 2, lineColor: [180, 180, 180] },
+        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 14, halign: "center", fontStyle: "bold" }, 5: { fontSize: 8 } },
+        margin: { left: 14, right: 14 },
+      });
+      let y = doc.lastAutoTable.finalY + 8;
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text("Nominativi: " + insTotals.total + "    Già assicurati: " + insTotals.already + "    Da assicurare: " + insTotals.toInsure, 14, y);
+      y += 6;
+      doc.text("Costo stimato (" + perPerson + " €/persona): € " + insTotals.cost, 14, y);
+      doc.save("TdP-Assicurazioni-" + new Date().toISOString().slice(0, 10) + ".pdf");
+      showToast("PDF assicurazioni esportato");
+    } catch (e) { alert("Errore export PDF: " + e.message); }
+  };
+  // ====== MAGLIE (modello piatto: una riga per capo) ======
+  // Migrazione una-tantum dal vecchio formato {name, items:[...]} a righe piatte
+  useEffect(() => {
+    if ((shirts || []).some(s => s && Array.isArray(s.items))) {
+      const flat = [];
+      shirts.forEach(s => {
+        if (s && Array.isArray(s.items)) {
+          if (s.items.length === 0) flat.push({ id: uid(), name: s.name || "", type: "Maglia", size: "", qty: 0, collected: false });
+          else s.items.forEach(it => flat.push({ id: it.id || uid(), name: s.name || "", type: it.type || "Maglia", size: it.size || "", qty: it.qty || 1, collected: !!it.collected }));
+        } else if (s) { flat.push(s); }
+      });
+      setShirts(flat);
+    }
+  }, []);
+
+  const handleShirtFile = (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array", cellDates: true });
+        const sn = wb.SheetNames.find(n => /magli/i.test(n)) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
+        const hr = findHeaderRow(rows, { name: /persona/i, size: /taglia/i, qty: /quantit/i, type: /tipologia/i });
+        if (!hr) { alert('Non ho trovato la colonna "PERSONA" nello sheet "' + sn + '".'); return; }
+        const items = [];
+        for (let i = hr.idx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const name = hr.cols.name != null && r[hr.cols.name] != null ? String(r[hr.cols.name]).trim() : "";
+          if (!name) continue;
+          if (/^totale/i.test(name)) break;
+          const size = hr.cols.size != null && r[hr.cols.size] != null ? String(r[hr.cols.size]).trim().toUpperCase() : "";
+          const typeRaw = hr.cols.type != null && r[hr.cols.type] != null ? String(r[hr.cols.type]).trim() : "";
+          const qtyRaw = hr.cols.qty != null ? r[hr.cols.qty] : null;
+          const hasInfo = !!(size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0));
+          const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : (hasInfo ? 1 : 0);
+          items.push({ id: uid(), name, type: /canott/i.test(typeRaw) ? "Canottiera" : "Maglia", size, qty, collected: false });
+        }
+        if (!items.length) { alert("Nessun nominativo trovato nel foglio."); return; }
+        setShirtPreview({ items, sheet: sn });
+      } catch (err) { alert("Errore lettura file: " + err.message); }
+    };
+    reader.onerror = () => alert("Impossibile leggere il file");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyShirtImport = () => {
+    if (!shirtPreview) return;
+    // Import pulito: sostituisce l'elenco con le righe del foglio
+    setShirts(shirtPreview.items.map(it => Object.assign({}, it, { id: uid() })));
+    setShirtPreview(null);
+    showToast(shirtPreview.items.length + " righe importate");
+  };
+
+  const addRow = () => setShirts([...(shirts || []), { id: uid(), name: "", type: "Maglia", size: "", qty: 1, collected: false }]);
+  const removeRow = (id) => setShirts(shirts.filter(it => it.id !== id));
+  const updateRow = (id, patch) => setShirts(shirts.map(it => it.id === id ? Object.assign({}, it, patch) : it));
+
+  const orderSummary = useMemo(() => {
+    const map = {}; let totalQty = 0, collectedQty = 0;
+    (shirts || []).forEach(it => {
+      const q = Number(it.qty) || 0; totalQty += q; if (it.collected) collectedQty += q;
+      if (q > 0) { const key = (it.type || "?") + " · " + (it.size || "—"); map[key] = (map[key] || 0) + q; }
+    });
+    const rows = Object.entries(map).map(([k, v]) => ({ k, v })).sort((a, b) => a.k.localeCompare(b.k));
+    return { rows, totalQty, collectedQty, pendingQty: totalQty - collectedQty };
+  }, [shirts]);
+
+  const exportShirtsExcel = () => {
+    try {
+      const aoa = [["Persona", "Tipologia", "Taglia", "Quantità", "Ritirata"]];
+      (shirts || []).forEach(it => aoa.push([it.name || "", it.type || "", it.size || "", Number(it.qty) || 0, it.collected ? "SI" : ""]));
+      aoa.push([]);
+      aoa.push(["RIEPILOGO ORDINE (tipologia · taglia)", "", "", "Quantità"]);
+      orderSummary.rows.forEach(r => aoa.push([r.k, "", "", r.v]));
+      aoa.push(["TOTALE DA ORDINARE", "", "", orderSummary.totalQty]);
+      const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Maglie");
+      XLSX.writeFile(wb, "TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+      showToast("Excel maglie esportato");
+    } catch (e) { alert("Errore export: " + e.message); }
+  };
+
+  const exportShirtsPDF = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Maglie", 14, 16);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
+      doc.setTextColor(0);
+      const body = (shirts || []).map(it => [it.name || "", it.type || "", it.size || "", String(Number(it.qty) || 0), it.collected ? "SI" : ""]);
+      doc.autoTable({
+        startY: 28, head: [["Persona", "Tipologia", "Taglia", "Q.tà", "Ritirata"]], body, theme: "grid",
+        styles: { fontSize: 9.5, cellPadding: 2, lineColor: [180, 180, 180] },
+        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
+        columnStyles: { 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" } },
+        margin: { left: 14, right: 14 },
+      });
+      let y = doc.lastAutoTable.finalY + 8;
+      doc.setFontSize(12); doc.setFont("helvetica", "bold");
+      doc.text("Riepilogo ordine", 14, y); y += 6;
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      orderSummary.rows.forEach(r => { doc.text("• " + r.k + ":  " + r.v, 16, y); y += 5; });
+      doc.setFont("helvetica", "bold");
+      doc.text("TOTALE da ordinare: " + orderSummary.totalQty + "   ·   Da consegnare: " + orderSummary.pendingQty, 14, y + 1);
+      doc.save("TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".pdf");
+      showToast("PDF maglie esportato");
+    } catch (e) { alert("Errore export PDF: " + e.message); }
+  };
+
+  return (
+    <>
+      <div className="section-head">
+        <div><h1>Assicurazioni &amp; Maglie</h1></div>
+      </div>
+
+      <div className="stats-tabs">
+        <button className={"stats-tab " + (tab === "assicurazioni" ? "active" : "")} onClick={() => setTab("assicurazioni")}>Assicurazioni</button>
+        <button className={"stats-tab " + (tab === "maglie" ? "active" : "")} onClick={() => setTab("maglie")}>Maglie</button>
+      </div>
+
+      {/* ============ ASSICURAZIONI ============ */}
+      {tab === "assicurazioni" && (
+        <div className="shifts-panel">
+          <div className="shifts-panel-head">
+            <h3>Assicurazioni ({insurance.length})</h3>
+            <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+              <input ref={insInputRef} type="file" accept=".xlsx,.xls" onChange={handleInsFile} style={{display:"none"}} />
+              <button className="btn btn-sm btn-gold" onClick={() => insInputRef.current && insInputRef.current.click()} title="Importa lo sheet Dati assicurazioni">📥 Importa</button>
+              {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsPDF}>📄 PDF</button>}
+              {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsExcel}>📊 Excel</button>}
+              <button className="btn btn-sm btn-primary" onClick={addInsRow}>+ Riga</button>
+            </div>
+          </div>
+
+          <div className="extra-summary">
+            <div className="extra-card"><div className="lbl">Nominativi</div><div className="val">{insTotals.total}</div></div>
+            <div className="extra-card"><div className="lbl">Già assicurati</div><div className="val">{insTotals.already}</div></div>
+            <div className="extra-card"><div className="lbl">Da assicurare</div><div className="val">{insTotals.toInsure}</div></div>
+            <div className="extra-card cost"><div className="lbl">Costo stimato</div><div className="val">€ {insTotals.cost}</div></div>
+            <div className="extra-card">
+              <div className="lbl">€ / persona</div>
+              <input type="number" min="0" step="0.5" value={perPerson} onChange={e => setPerPerson(e.target.value)} style={{width:"100%", marginTop:4, padding:"4px 6px", fontSize:16, fontFamily:"'Bebas Neue', sans-serif"}} />
+            </div>
+          </div>
+
+          {insurance.length === 0 ? (
+            <p style={{fontStyle:"italic", color:"var(--ink-soft)", textAlign:"center", padding:"16px"}}>
+              Nessun nominativo. Importa lo sheet “Dati assicurazioni” oppure aggiungi una riga.
+            </p>
+          ) : (
+            <div className="extra-table-wrap">
+              <table className="extra-table">
+                <thead>
+                  <tr>
+                    <th className="c" title="Spunta chi è già assicurato (escluso dal conteggio)">Assic.</th>
+                    <th>Nome e cognome</th>
+                    <th>Nascita</th>
+                    <th>Luogo</th>
+                    <th>Residenza</th>
+                    <th>Codice Fiscale</th>
+                    <th className="c"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {insurance.map(p => (
+                    <tr key={p.id} className={p.insured ? "insured-row" : ""}>
+                      <td className="c"><input type="checkbox" checked={!!p.insured} onChange={() => toggleInsured(p.id)} /></td>
+                      <td><input type="text" value={p.name} onChange={e => updateIns(p.id, { name: e.target.value })} placeholder="Nome Cognome" /></td>
+                      <td><input type="text" value={p.birthDate || ""} onChange={e => updateIns(p.id, { birthDate: e.target.value })} /></td>
+                      <td><input type="text" value={p.birthPlace || ""} onChange={e => updateIns(p.id, { birthPlace: e.target.value })} /></td>
+                      <td><input type="text" value={p.residence || ""} onChange={e => updateIns(p.id, { residence: e.target.value })} /></td>
+                      <td><input type="text" value={p.fiscalCode || ""} onChange={e => updateIns(p.id, { fiscalCode: e.target.value.toUpperCase() })} /></td>
+                      <td className="c"><button className="row-del" onClick={() => removeIns(p.id)} title="Rimuovi">✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p style={{fontSize:12.5, color:"var(--ink-soft)", marginTop:10, fontStyle:"italic"}}>
+            Spunta “Assic.” per chi ha già una copertura: viene escluso dal conteggio dei {perPerson} € a persona.
+          </p>
+        </div>
+      )}
+
+      {/* ============ MAGLIE ============ */}
+      {tab === "maglie" && (
+        <div className="shifts-panel">
+          <div className="shifts-panel-head">
+            <h3>Maglie ({shirts.length})</h3>
+            <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+              <input ref={shirtInputRef} type="file" accept=".xlsx,.xls" onChange={handleShirtFile} style={{display:"none"}} />
+              <button className="btn btn-sm btn-gold" onClick={() => shirtInputRef.current && shirtInputRef.current.click()} title="Importa lo sheet Gestione maglie">📥 Importa</button>
+              {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsPDF}>📄 PDF</button>}
+              {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsExcel}>📊 Excel</button>}
+              <button className="btn btn-sm btn-primary" onClick={addRow}>+ Riga</button>
+            </div>
+          </div>
+
+          <div className="extra-summary">
+            <div className="extra-card highlight"><div className="lbl">Totale da ordinare</div><div className="val">{orderSummary.totalQty}</div></div>
+            <div className="extra-card"><div className="lbl">Già ritirate</div><div className="val">{orderSummary.collectedQty}</div></div>
+            <div className="extra-card"><div className="lbl">Da consegnare</div><div className="val">{orderSummary.pendingQty}</div></div>
+          </div>
+
+          {orderSummary.rows.length > 0 && (
+            <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:16}}>
+              {orderSummary.rows.map(r => (
+                <span key={r.k} className="order-pill">{r.k} <b>{r.v}</b></span>
+              ))}
+            </div>
+          )}
+
+          {shirts.length === 0 ? (
+            <p style={{fontStyle:"italic", color:"var(--ink-soft)", textAlign:"center", padding:"16px"}}>
+              Nessuna riga. Importa lo sheet “Gestione maglie” oppure aggiungi una riga.
+            </p>
+          ) : (
+            <div className="extra-table-wrap">
+              <table className="extra-table">
+                <thead>
+                  <tr>
+                    <th style={{minWidth:150}}>Persona</th>
+                    <th style={{minWidth:120}}>Tipologia</th>
+                    <th>Taglia</th>
+                    <th className="c">Quantità</th>
+                    <th className="c">Ritirata</th>
+                    <th className="c"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shirts.map(it => (
+                    <tr key={it.id}>
+                      <td><input type="text" value={it.name} onChange={e => updateRow(it.id, { name: e.target.value })} placeholder="Nome" /></td>
+                      <td>
+                        <select value={it.type} onChange={e => updateRow(it.id, { type: e.target.value })}>
+                          <option value="Maglia">Maglia</option>
+                          <option value="Canottiera">Canottiera</option>
+                        </select>
+                      </td>
+                      <td><input className="size" type="text" value={it.size || ""} onChange={e => updateRow(it.id, { size: e.target.value.toUpperCase() })} placeholder="—" /></td>
+                      <td className="c"><input className="qty" type="number" min="0" value={it.qty} onChange={e => updateRow(it.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} /></td>
+                      <td className="c"><input type="checkbox" checked={!!it.collected} onChange={e => updateRow(it.id, { collected: e.target.checked })} /></td>
+                      <td className="c"><button className="row-del" onClick={() => removeRow(it.id)} title="Rimuovi riga">✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODALE CONFERMA IMPORT ASSICURAZIONI */}
+      {insPreview && (
+        <div className="modal-overlay" onClick={() => setInsPreview(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: 560}}>
+            <div className="modal-head">
+              <h2>Importa dati assicurazioni</h2>
+              <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
+                Foglio “{insPreview.sheet}” · {insPreview.people.length} nominativi · {insPreview.people.filter(p=>p.insured).length} già assicurati
+              </div>
+            </div>
+            <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
+              <table className="extra-table">
+                <thead><tr><th className="c">Assic.</th><th>Nome</th><th>Stato</th></tr></thead>
+                <tbody>
+                  {insPreview.people.map((p, i) => {
+                    const exists = insurance.some(x => x.name.trim().toLowerCase() === p.name.toLowerCase());
+                    return (
+                      <tr key={i} className={p.insured ? "insured-row" : ""}>
+                        <td className="c">{p.insured ? "✓" : ""}</td>
+                        <td>{p.name}</td>
+                        <td style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color: exists ? "var(--gold-deep)" : "var(--green-field)"}}>{exists ? "aggiorna" : "nuovo"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setInsPreview(null)}>Annulla</button>
+              <button className="btn btn-gold" onClick={applyInsImport}>Importa {insPreview.people.length} nominativi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE CONFERMA IMPORT MAGLIE */}
+      {shirtPreview && (
+        <div className="modal-overlay" onClick={() => setShirtPreview(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: 560}}>
+            <div className="modal-head">
+              <h2>Importa gestione maglie</h2>
+              <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
+                Foglio “{shirtPreview.sheet}” · {shirtPreview.items.length} righe · {shirtPreview.items.reduce((a,it)=>a+(Number(it.qty)||0),0)} capi totali
+              </div>
+            </div>
+            <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
+              <table className="extra-table">
+                <thead><tr><th>Persona</th><th>Tipologia</th><th>Taglia</th><th className="c">Q.tà</th></tr></thead>
+                <tbody>
+                  {shirtPreview.items.map((it, i) => (
+                    <tr key={i}>
+                      <td>{it.name}</td>
+                      <td>{it.type}</td>
+                      <td>{it.size || "—"}</td>
+                      <td className="c">{it.qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:10}}>
+              ⚠ L'import <b>sostituisce</b> l'elenco maglie attuale con le righe del foglio.
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setShirtPreview(null)}>Annulla</button>
+              <button className="btn btn-gold" onClick={applyShirtImport}>Importa {shirtPreview.items.length} righe</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
