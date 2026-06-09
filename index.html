@@ -4674,48 +4674,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
     } catch (e) { alert("Errore export: " + e.message); }
   };
 
-  const exportInsPDF = () => {
-    try {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      doc.setFontSize(18); doc.setFont("helvetica", "bold");
-      doc.text("Torneo del Prete 2026 — Assicurazioni", 14, 16);
-      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
-      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
-      doc.setTextColor(0);
-      const head = [["Assic.", "Nome e cognome", "Nascita", "Luogo", "Residenza", "Codice Fiscale"]];
-      const body = insurance.map(p => [p.insured ? "SI" : "", p.name || "", p.birthDate || "", p.birthPlace || "", p.residence || "", p.fiscalCode || ""]);
-      doc.autoTable({
-        startY: 28, head, body, theme: "grid",
-        styles: { fontSize: 9, cellPadding: 2, lineColor: [180, 180, 180] },
-        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
-        columnStyles: { 0: { cellWidth: 14, halign: "center", fontStyle: "bold" }, 5: { fontSize: 8 } },
-        margin: { left: 14, right: 14 },
-      });
-      let y = doc.lastAutoTable.finalY + 8;
-      doc.setFontSize(11); doc.setFont("helvetica", "bold");
-      doc.text("Nominativi: " + insTotals.total + "    Già assicurati: " + insTotals.already + "    Da assicurare: " + insTotals.toInsure, 14, y);
-      y += 6;
-      doc.text("Costo stimato (" + perPerson + " €/persona): € " + insTotals.cost, 14, y);
-      doc.save("TdP-Assicurazioni-" + new Date().toISOString().slice(0, 10) + ".pdf");
-      showToast("PDF assicurazioni esportato");
-    } catch (e) { alert("Errore export PDF: " + e.message); }
-  };
-  // ====== MAGLIE (modello piatto: una riga per capo) ======
-  // Migrazione una-tantum dal vecchio formato {name, items:[...]} a righe piatte
-  useEffect(() => {
-    if ((shirts || []).some(s => s && Array.isArray(s.items))) {
-      const flat = [];
-      shirts.forEach(s => {
-        if (s && Array.isArray(s.items)) {
-          if (s.items.length === 0) flat.push({ id: uid(), name: s.name || "", type: "Maglia", size: "", qty: 0, collected: false });
-          else s.items.forEach(it => flat.push({ id: it.id || uid(), name: s.name || "", type: it.type || "Maglia", size: it.size || "", qty: it.qty || 1, collected: !!it.collected }));
-        } else if (s) { flat.push(s); }
-      });
-      setShirts(flat);
-    }
-  }, []);
-
+  // ====== MAGLIE ======
   const handleShirtFile = (e) => {
     const file = e.target.files[0]; e.target.value = ""; if (!file) return;
     const reader = new FileReader();
@@ -4726,21 +4685,24 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
         const hr = findHeaderRow(rows, { name: /persona/i, size: /taglia/i, qty: /quantit/i, type: /tipologia/i });
         if (!hr) { alert('Non ho trovato la colonna "PERSONA" nello sheet "' + sn + '".'); return; }
-        const items = [];
+        const people = [];
         for (let i = hr.idx + 1; i < rows.length; i++) {
           const r = rows[i] || [];
           const name = hr.cols.name != null && r[hr.cols.name] != null ? String(r[hr.cols.name]).trim() : "";
           if (!name) continue;
           if (/^totale/i.test(name)) break;
-          const size = hr.cols.size != null && r[hr.cols.size] != null ? String(r[hr.cols.size]).trim().toUpperCase() : "";
+          const size = hr.cols.size != null && r[hr.cols.size] != null ? String(r[hr.cols.size]).trim() : "";
           const typeRaw = hr.cols.type != null && r[hr.cols.type] != null ? String(r[hr.cols.type]).trim() : "";
           const qtyRaw = hr.cols.qty != null ? r[hr.cols.qty] : null;
-          const hasInfo = !!(size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0));
-          const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : (hasInfo ? 1 : 0);
-          items.push({ id: uid(), name, type: /canott/i.test(typeRaw) ? "Canottiera" : "Maglia", size, qty, collected: false });
+          const items = [];
+          if (size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0)) {
+            const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : 1;
+            items.push({ id: uid(), type: /canott/i.test(typeRaw) ? "Canottiera" : "Maglia", size, qty, collected: false });
+          }
+          people.push({ name, items });
         }
-        if (!items.length) { alert("Nessun nominativo trovato nel foglio."); return; }
-        setShirtPreview({ items, sheet: sn });
+        if (!people.length) { alert("Nessun nominativo trovato nel foglio."); return; }
+        setShirtPreview({ people, sheet: sn });
       } catch (err) { alert("Errore lettura file: " + err.message); }
     };
     reader.onerror = () => alert("Impossibile leggere il file");
@@ -4749,22 +4711,33 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
 
   const applyShirtImport = () => {
     if (!shirtPreview) return;
-    // Import pulito: sostituisce l'elenco con le righe del foglio
-    setShirts(shirtPreview.items.map(it => Object.assign({}, it, { id: uid() })));
-    setShirtPreview(null);
-    showToast(shirtPreview.items.length + " righe importate");
+    const byName = {}; shirts.forEach(p => { byName[p.name.trim().toLowerCase()] = p; });
+    const list = shirts.slice(); let added = 0, updated = 0;
+    shirtPreview.people.forEach(p => {
+      const ex = byName[p.name.toLowerCase()];
+      if (ex) {
+        const idx = list.findIndex(x => x.id === ex.id);
+        list[idx] = Object.assign({}, ex, { items: [...(ex.items || []), ...p.items.map(it => Object.assign({}, it, { id: uid() }))] });
+        updated++;
+      } else { list.push({ id: uid(), name: p.name, items: p.items }); added++; }
+    });
+    setShirts(list); setShirtPreview(null);
+    showToast(added + " aggiunti · " + updated + " aggiornati");
   };
 
-  const addRow = () => setShirts([...(shirts || []), { id: uid(), name: "", type: "Maglia", size: "", qty: 1, collected: false }]);
-  const removeRow = (id) => setShirts(shirts.filter(it => it.id !== id));
-  const updateRow = (id, patch) => setShirts(shirts.map(it => it.id === id ? Object.assign({}, it, patch) : it));
+  const addShirtPerson = () => setShirts([...shirts, { id: uid(), name: "", items: [] }]);
+  const removeShirtPerson = (id) => { if (!confirm("Rimuovere questo nominativo dalla lista maglie?")) return; setShirts(shirts.filter(p => p.id !== id)); };
+  const updateShirtName = (id, name) => setShirts(shirts.map(p => p.id === id ? Object.assign({}, p, { name }) : p));
+  const addItem = (pid) => setShirts(shirts.map(p => p.id === pid ? Object.assign({}, p, { items: [...(p.items || []), { id: uid(), type: "Maglia", size: "", qty: 1, collected: false }] }) : p));
+  const updateItem = (pid, iid, patch) => setShirts(shirts.map(p => p.id === pid ? Object.assign({}, p, { items: p.items.map(it => it.id === iid ? Object.assign({}, it, patch) : it) }) : p));
+  const removeItem = (pid, iid) => setShirts(shirts.map(p => p.id === pid ? Object.assign({}, p, { items: p.items.filter(it => it.id !== iid) }) : p));
 
   const orderSummary = useMemo(() => {
     const map = {}; let totalQty = 0, collectedQty = 0;
-    (shirts || []).forEach(it => {
+    shirts.forEach(p => (p.items || []).forEach(it => {
       const q = Number(it.qty) || 0; totalQty += q; if (it.collected) collectedQty += q;
-      if (q > 0) { const key = (it.type || "?") + " · " + (it.size || "—"); map[key] = (map[key] || 0) + q; }
-    });
+      const key = it.type + " · " + (it.size || "—"); map[key] = (map[key] || 0) + q;
+    }));
     const rows = Object.entries(map).map(([k, v]) => ({ k, v })).sort((a, b) => a.k.localeCompare(b.k));
     return { rows, totalQty, collectedQty, pendingQty: totalQty - collectedQty };
   }, [shirts]);
@@ -4772,7 +4745,10 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
   const exportShirtsExcel = () => {
     try {
       const aoa = [["Persona", "Tipologia", "Taglia", "Quantità", "Ritirata"]];
-      (shirts || []).forEach(it => aoa.push([it.name || "", it.type || "", it.size || "", Number(it.qty) || 0, it.collected ? "SI" : ""]));
+      shirts.forEach(p => {
+        if (!p.items || p.items.length === 0) { aoa.push([p.name, "", "", "", ""]); return; }
+        p.items.forEach(it => aoa.push([p.name, it.type, it.size || "", Number(it.qty) || 0, it.collected ? "SI" : ""]));
+      });
       aoa.push([]);
       aoa.push(["RIEPILOGO ORDINE (tipologia · taglia)", "", "", "Quantità"]);
       orderSummary.rows.forEach(r => aoa.push([r.k, "", "", r.v]));
@@ -4783,35 +4759,6 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
       XLSX.writeFile(wb, "TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".xlsx");
       showToast("Excel maglie esportato");
     } catch (e) { alert("Errore export: " + e.message); }
-  };
-
-  const exportShirtsPDF = () => {
-    try {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      doc.setFontSize(18); doc.setFont("helvetica", "bold");
-      doc.text("Torneo del Prete 2026 — Maglie", 14, 16);
-      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
-      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
-      doc.setTextColor(0);
-      const body = (shirts || []).map(it => [it.name || "", it.type || "", it.size || "", String(Number(it.qty) || 0), it.collected ? "SI" : ""]);
-      doc.autoTable({
-        startY: 28, head: [["Persona", "Tipologia", "Taglia", "Q.tà", "Ritirata"]], body, theme: "grid",
-        styles: { fontSize: 9.5, cellPadding: 2, lineColor: [180, 180, 180] },
-        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
-        columnStyles: { 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" } },
-        margin: { left: 14, right: 14 },
-      });
-      let y = doc.lastAutoTable.finalY + 8;
-      doc.setFontSize(12); doc.setFont("helvetica", "bold");
-      doc.text("Riepilogo ordine", 14, y); y += 6;
-      doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      orderSummary.rows.forEach(r => { doc.text("• " + r.k + ":  " + r.v, 16, y); y += 5; });
-      doc.setFont("helvetica", "bold");
-      doc.text("TOTALE da ordinare: " + orderSummary.totalQty + "   ·   Da consegnare: " + orderSummary.pendingQty, 14, y + 1);
-      doc.save("TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".pdf");
-      showToast("PDF maglie esportato");
-    } catch (e) { alert("Errore export PDF: " + e.message); }
   };
 
   return (
@@ -4833,7 +4780,6 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
               <input ref={insInputRef} type="file" accept=".xlsx,.xls" onChange={handleInsFile} style={{display:"none"}} />
               <button className="btn btn-sm btn-gold" onClick={() => insInputRef.current && insInputRef.current.click()} title="Importa lo sheet Dati assicurazioni">📥 Importa</button>
-              {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsPDF}>📄 PDF</button>}
               {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsExcel}>📊 Excel</button>}
               <button className="btn btn-sm btn-primary" onClick={addInsRow}>+ Riga</button>
             </div>
@@ -4898,9 +4844,8 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
               <input ref={shirtInputRef} type="file" accept=".xlsx,.xls" onChange={handleShirtFile} style={{display:"none"}} />
               <button className="btn btn-sm btn-gold" onClick={() => shirtInputRef.current && shirtInputRef.current.click()} title="Importa lo sheet Gestione maglie">📥 Importa</button>
-              {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsPDF}>📄 PDF</button>}
               {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsExcel}>📊 Excel</button>}
-              <button className="btn btn-sm btn-primary" onClick={addRow}>+ Riga</button>
+              <button className="btn btn-sm btn-primary" onClick={addShirtPerson}>+ Persona</button>
             </div>
           </div>
 
@@ -4920,35 +4865,42 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
 
           {shirts.length === 0 ? (
             <p style={{fontStyle:"italic", color:"var(--ink-soft)", textAlign:"center", padding:"16px"}}>
-              Nessuna riga. Importa lo sheet “Gestione maglie” oppure aggiungi una riga.
+              Nessun nominativo. Importa lo sheet “Gestione maglie” oppure aggiungi una persona.
             </p>
           ) : (
             <div className="extra-table-wrap">
               <table className="extra-table">
                 <thead>
                   <tr>
-                    <th style={{minWidth:150}}>Persona</th>
-                    <th style={{minWidth:120}}>Tipologia</th>
-                    <th>Taglia</th>
-                    <th className="c">Quantità</th>
-                    <th className="c">Ritirata</th>
+                    <th style={{minWidth:160}}>Persona</th>
+                    <th>Capi (tipologia · taglia · q.tà · ritirata)</th>
                     <th className="c"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {shirts.map(it => (
-                    <tr key={it.id}>
-                      <td><input type="text" value={it.name} onChange={e => updateRow(it.id, { name: e.target.value })} placeholder="Nome" /></td>
+                  {shirts.map(p => (
+                    <tr key={p.id}>
+                      <td><input type="text" value={p.name} onChange={e => updateShirtName(p.id, e.target.value)} placeholder="Nome" /></td>
                       <td>
-                        <select value={it.type} onChange={e => updateRow(it.id, { type: e.target.value })}>
-                          <option value="Maglia">Maglia</option>
-                          <option value="Canottiera">Canottiera</option>
-                        </select>
+                        {(p.items || []).length === 0 && <span style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:12.5}}>Nessun capo</span>}
+                        {(p.items || []).map(it => (
+                          <div key={it.id} className="shirt-item-row">
+                            <select value={it.type} onChange={e => updateItem(p.id, it.id, { type: e.target.value })}>
+                              <option value="Maglia">Maglia</option>
+                              <option value="Canottiera">Canottiera</option>
+                            </select>
+                            <input className="size" type="text" value={it.size || ""} onChange={e => updateItem(p.id, it.id, { size: e.target.value.toUpperCase() })} placeholder="Taglia" />
+                            <span className="lbl-mini">q.tà</span>
+                            <input className="qty" type="number" min="1" value={it.qty} onChange={e => updateItem(p.id, it.id, { qty: Math.max(1, parseInt(e.target.value) || 1) })} />
+                            <label style={{display:"inline-flex", alignItems:"center", gap:5, fontSize:12.5}}>
+                              <input type="checkbox" checked={!!it.collected} onChange={e => updateItem(p.id, it.id, { collected: e.target.checked })} /> ritirata
+                            </label>
+                            <button className="row-del" onClick={() => removeItem(p.id, it.id)} title="Rimuovi capo">✕</button>
+                          </div>
+                        ))}
+                        <button className="btn btn-sm" style={{marginTop:6}} onClick={() => addItem(p.id)}>+ capo</button>
                       </td>
-                      <td><input className="size" type="text" value={it.size || ""} onChange={e => updateRow(it.id, { size: e.target.value.toUpperCase() })} placeholder="—" /></td>
-                      <td className="c"><input className="qty" type="number" min="0" value={it.qty} onChange={e => updateRow(it.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} /></td>
-                      <td className="c"><input type="checkbox" checked={!!it.collected} onChange={e => updateRow(it.id, { collected: e.target.checked })} /></td>
-                      <td className="c"><button className="row-del" onClick={() => removeRow(it.id)} title="Rimuovi riga">✕</button></td>
+                      <td className="c"><button className="row-del" onClick={() => removeShirtPerson(p.id)} title="Rimuovi persona">✕</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -5000,30 +4952,32 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div className="modal-head">
               <h2>Importa gestione maglie</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                Foglio “{shirtPreview.sheet}” · {shirtPreview.items.length} righe · {shirtPreview.items.reduce((a,it)=>a+(Number(it.qty)||0),0)} capi totali
+                Foglio “{shirtPreview.sheet}” · {shirtPreview.people.length} persone · {shirtPreview.people.reduce((a,p)=>a+p.items.length,0)} capi
               </div>
             </div>
             <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
               <table className="extra-table">
-                <thead><tr><th>Persona</th><th>Tipologia</th><th>Taglia</th><th className="c">Q.tà</th></tr></thead>
+                <thead><tr><th>Persona</th><th>Capi</th><th>Stato</th></tr></thead>
                 <tbody>
-                  {shirtPreview.items.map((it, i) => (
-                    <tr key={i}>
-                      <td>{it.name}</td>
-                      <td>{it.type}</td>
-                      <td>{it.size || "—"}</td>
-                      <td className="c">{it.qty}</td>
-                    </tr>
-                  ))}
+                  {shirtPreview.people.map((p, i) => {
+                    const exists = shirts.some(x => x.name.trim().toLowerCase() === p.name.toLowerCase());
+                    return (
+                      <tr key={i}>
+                        <td>{p.name}</td>
+                        <td style={{fontSize:12.5}}>{p.items.length ? p.items.map(it => it.type + " " + (it.size||"?") + " ×" + it.qty).join(", ") : "—"}</td>
+                        <td style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color: exists ? "var(--gold-deep)" : "var(--green-field)"}}>{exists ? "aggiunge" : "nuovo"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-            <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:10}}>
-              ⚠ L'import <b>sostituisce</b> l'elenco maglie attuale con le righe del foglio.
+            <p style={{fontSize:12.5, color:"var(--ink-soft)", marginTop:10}}>
+              Per chi è già presente, i capi importati vengono <b>aggiunti</b> a quelli esistenti (così puoi avere più item per persona).
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShirtPreview(null)}>Annulla</button>
-              <button className="btn btn-gold" onClick={applyShirtImport}>Importa {shirtPreview.items.length} righe</button>
+              <button className="btn btn-gold" onClick={applyShirtImport}>Importa {shirtPreview.people.length} persone</button>
             </div>
           </div>
         </div>
