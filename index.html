@@ -244,6 +244,23 @@
   .shift-subtab { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 0.05em; padding: 10px 20px; background: var(--cream-soft); border: 1.5px solid var(--ink); cursor: pointer; color: var(--ink-soft); border-radius: 4px; box-shadow: 2px 2px 0 var(--ink); }
   .shift-subtab:hover { color: var(--ink); }
   .shift-subtab.active { background: var(--green-deep); color: var(--gold); }
+  /* Mansioni: specchio dei turni raggruppato per area */
+  .mansioni-areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 4px; }
+  .mansioni-area { border: 1.5px solid var(--ink); border-radius: 4px; overflow: hidden; background: var(--paper); }
+  .mansioni-area-head { color: var(--cream); font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.05em; padding: 8px 12px; }
+  .mansioni-area-head span { opacity: 0.8; font-size: 13px; }
+  .mansioni-people { list-style: none; margin: 0; padding: 6px 0; }
+  .mansioni-people li { padding: 7px 12px; border-bottom: 1px dashed rgba(22,26,24,0.12); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .mansioni-people li:last-child { border-bottom: none; }
+  .mansioni-people .mp-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; }
+  /* Mansioni: tabella per area con chip persone */
+  .mansioni-table td { vertical-align: middle; }
+  .mansione-people { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .mansione-people .person-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--green-field); color: var(--cream); border-radius: 14px; padding: 3px 4px 3px 10px; font-family: 'Fraunces', serif; font-size: 12.5px; font-weight: 600; }
+  .mansione-people .person-chip button { background: rgba(255,255,255,0.25); border: none; color: var(--cream); width: 17px; height: 17px; border-radius: 50%; cursor: pointer; font-size: 10px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+  .mansione-people .person-chip button:hover { background: var(--terracotta); }
+  .mansione-people .add-person-select { font-size: 12px; padding: 4px 6px; border-radius: 12px; border: 1.5px dashed var(--ink-soft); background: var(--paper); color: var(--ink-soft); cursor: pointer; max-width: 170px; }
+  .mansione-people .add-person-select.full { border-color: var(--green-field); color: var(--green-field); }
   /* Tabelle assicurazioni / maglie (riuso struttura mapping) */
   .extra-table-wrap { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 4px; box-shadow: 3px 3px 0 var(--ink); background: var(--paper); }
   .extra-table { width: 100%; border-collapse: collapse; }
@@ -1044,6 +1061,7 @@ function App() {
   const [shifts, setShifts] = useFirebaseValue(fb.db, "shifts", {});
   const [insurance, setInsurance] = useFirebaseValue(fb.db, "insurance", []);
   const [shirts, setShirts] = useFirebaseValue(fb.db, "shirts", []);
+  const [mansioni, setMansioni] = useFirebaseValue(fb.db, "mansioni", {});
   const [inventory, setInventory] = useFirebaseValue(fb.db, "inventory", []);
   // Quote pagamenti (modificabili da Admin)
   const [quoteConfig, setQuoteConfig] = useFirebaseValue(fb.db, "quoteConfig", {
@@ -1146,7 +1164,7 @@ function App() {
         {view === "gironi" && <GironiView teams={teams} matches={matches} />}
         {view === "calendario" && <CalendarView teams={teams} matches={matches} setMatches={setMatches} canEdit={canEdit} showToast={showToast} />}
         {view === "statistiche" && <StatsView teams={teams} matches={matches} />}
-        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} insurance={insurance} setInsurance={setInsurance} shirts={shirts} setShirts={setShirts} showToast={showToast} />}
+        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} insurance={insurance} setInsurance={setInsurance} shirts={shirts} setShirts={setShirts} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />}
         {view === "turni" && !canEdit && (
           <div className="empty">
             <div className="empty-icon">🔒</div>
@@ -3813,7 +3831,7 @@ function CassaView({ db }) {
 // =================================================================
 // SHIFTS / TURNI STAFF
 // =================================================================
-function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, insurance, setInsurance, shirts, setShirts, showToast }) {
+function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, insurance, setInsurance, shirts, setShirts, mansioni, setMansioni, showToast }) {
   const [subTab, setSubTab] = useState("turni"); // "turni" | "extra"
   const [addingStaff, setAddingStaff] = useState(false);
   const [newName, setNewName] = useState("");
@@ -3964,7 +3982,24 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   };
 
   const setStaffArea = (id, posId) => {
+    const person = staff.find(s => s.id === id);
     setStaff(staff.map(s => s.id === id ? Object.assign({}, s, { preferredPosition: posId }) : s));
+    // Sincronizzazione immediata con l'ultima tabella: rimuovo la persona da tutte le celle,
+    // poi (se ha un'area) la piazzo in quell'area in tutte le serate in cui è disponibile.
+    const newShifts = {};
+    Object.entries(shifts).forEach(([k, v]) => {
+      const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
+      const filtered = arr.filter(sid => sid !== id);
+      if (filtered.length) newShifts[k] = filtered;
+    });
+    if (posId && person) {
+      STAFF_DATES.forEach(d => {
+        if (!(person.availability && person.availability[d.iso])) return;
+        const key = shiftKey(d.iso, posId);
+        newShifts[key] = [...(newShifts[key] || []), id];
+      });
+    }
+    setShifts(newShifts);
   };
 
   // Export matrice turni (serate × aree con i nomi)
@@ -4197,6 +4232,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     <>
       <div className="shift-subtabs">
         <button className={"shift-subtab " + (subTab === "turni" ? "active" : "")} onClick={() => setSubTab("turni")}>Turni staff</button>
+        <button className={"shift-subtab " + (subTab === "mansioni" ? "active" : "")} onClick={() => setSubTab("mansioni")}>Mansioni</button>
         <button className={"shift-subtab " + (subTab === "extra" ? "active" : "")} onClick={() => setSubTab("extra")}>Assicurazioni &amp; Maglie</button>
       </div>
 
@@ -4559,6 +4595,10 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       </>
       )}
 
+      {subTab === "mansioni" && (
+        <MansioniView staff={staff} positions={positions} shifts={shifts} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />
+      )}
+
       {subTab === "extra" && (
         <AssicurazioniMaglieView
           insurance={insurance} setInsurance={setInsurance}
@@ -4566,6 +4606,152 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           showToast={showToast}
         />
       )}
+    </>
+  );
+}
+
+const DEFAULT_MANSIONI = {
+  "campo": [["Gestione arbitri/panchine",1],["Segnapunti e accoglienza squadre",1],["Raccattapalle + Palazzetto",2],["Video partita",1],["Jolly",1]],
+  "cucina": [["Griglia",1],["Friggitrice",1],["Gestione ordini",1],["Assemblaggio panini",2],["Cameriere",2],["Jolly",1]],
+  "bar": [["Gestione bar e aree comuni",1],["Barista",2],["Jolly",1]],
+  "cassa": [["Cassiere",2]],
+  "social": [["Interviste",1],["Storie Instagram/FB",1],["Fotografo/a",1],["Telecronaca",1],["Musica/Video",1],["Jolly",1]],
+};
+
+function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToast }) {
+  const staffById = useMemo(() => { const m = {}; staff.forEach(s => m[s.id] = s); return m; }, [staff]);
+
+  // Persone disponibili per area = chi appare in quella posizione nell'ultima tabella turni (qualsiasi serata)
+  const peopleByArea = useMemo(() => {
+    const sets = {}; positions.forEach(p => sets[p.id] = new Set());
+    Object.entries(shifts || {}).forEach(([k, v]) => {
+      const posId = k.split("::")[1];
+      if (!sets[posId]) return;
+      const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
+      arr.forEach(sid => sets[posId].add(sid));
+    });
+    const out = {};
+    Object.entries(sets).forEach(([pid, set]) => {
+      out[pid] = [...set].map(id => staffById[id]).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    });
+    return out;
+  }, [shifts, positions, staffById]);
+
+  // Precarico le mansioni di default (per nome area) se non ce ne sono ancora
+  useEffect(() => {
+    if (!positions.length) return;
+    if (mansioni && Object.keys(mansioni).length > 0) return;
+    const seed = {};
+    positions.forEach(p => {
+      const def = DEFAULT_MANSIONI[p.name.trim().toLowerCase()] || [];
+      seed[p.id] = def.map(([name, qty]) => ({ id: uid(), name, qty, people: [] }));
+    });
+    if (Object.keys(seed).length) setMansioni(seed);
+  }, [positions]);
+
+  const rowsOf = (pid) => (mansioni && Array.isArray(mansioni[pid])) ? mansioni[pid] : [];
+  const setRows = (pid, newRows) => setMansioni(Object.assign({}, mansioni, { [pid]: newRows }));
+  const addRow = (pid) => setRows(pid, [...rowsOf(pid), { id: uid(), name: "", qty: 1, people: [] }]);
+  const removeRow = (pid, rid) => setRows(pid, rowsOf(pid).filter(r => r.id !== rid));
+  const updateRow = (pid, rid, patch) => setRows(pid, rowsOf(pid).map(r => r.id === rid ? Object.assign({}, r, patch) : r));
+  const addPersonToRow = (pid, rid, sid) => {
+    if (!sid) return;
+    const r = rowsOf(pid).find(x => x.id === rid); if (!r) return;
+    const people = r.people || [];
+    if (people.includes(sid)) return;
+    updateRow(pid, rid, { people: [...people, sid] });
+  };
+  const removePersonFromRow = (pid, rid, sid) => {
+    const r = rowsOf(pid).find(x => x.id === rid); if (!r) return;
+    updateRow(pid, rid, { people: (r.people || []).filter(x => x !== sid) });
+  };
+  const resetDefaults = () => {
+    if (!confirm("Ripristino le mansioni predefinite per tutte le aree? Le assegnazioni di persone alle mansioni andranno perse.")) return;
+    const seed = {};
+    positions.forEach(p => {
+      const def = DEFAULT_MANSIONI[p.name.trim().toLowerCase()] || [];
+      seed[p.id] = def.map(([name, qty]) => ({ id: uid(), name, qty, people: [] }));
+    });
+    setMansioni(seed);
+    showToast("Mansioni predefinite ripristinate");
+  };
+
+  const hasAnyPeople = positions.some(p => (peopleByArea[p.id] || []).length > 0);
+
+  return (
+    <>
+      <div className="section-head">
+        <div>
+          <h1>Mansioni specifiche</h1>
+          <div className="subtitle">Assegna ogni persona dei turni alla sua mansione, area per area</div>
+        </div>
+        <button className="btn btn-sm" onClick={resetDefaults} title="Ripristina l'elenco mansioni predefinito">↺ Mansioni predefinite</button>
+      </div>
+
+      {!hasAnyPeople && (
+        <p style={{fontSize:13, color:"var(--terracotta-dark)", marginBottom:16, fontStyle:"italic"}}>
+          Nessuna persona nei turni: i menù “aggiungi persona” saranno vuoti finché non compili la tabella turni (importa il sondaggio o assegna le aree nella mappatura).
+        </p>
+      )}
+
+      {positions.map(p => {
+        const available = peopleByArea[p.id] || [];
+        const rows = rowsOf(p.id);
+        return (
+          <div className="shifts-panel" key={p.id}>
+            <div className="shifts-panel-head" style={{borderLeft: "6px solid " + p.color, paddingLeft: 12}}>
+              <h3>{p.name} <span style={{color:"var(--ink-soft)", fontFamily:"'JetBrains Mono', monospace", fontSize:12, fontWeight:400}}>· {available.length} in turno</span></h3>
+              <button className="btn btn-sm btn-primary" onClick={() => addRow(p.id)}>+ Mansione</button>
+            </div>
+            {rows.length === 0 ? (
+              <p style={{fontStyle:"italic", color:"var(--ink-soft)", padding:"10px 2px", fontSize:13}}>Nessuna mansione. Aggiungine una con “+ Mansione”.</p>
+            ) : (
+              <div className="extra-table-wrap">
+                <table className="extra-table mansioni-table">
+                  <thead>
+                    <tr>
+                      <th style={{minWidth:170}}>Mansione</th>
+                      <th className="c" style={{width:90}}>Q.tà rich.</th>
+                      <th>Persone assegnate</th>
+                      <th className="c" style={{width:40}}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => {
+                      const assigned = (r.people || []).map(sid => staffById[sid]).filter(Boolean);
+                      const full = assigned.length >= (Number(r.qty) || 0);
+                      const options = available.filter(s => !(r.people || []).includes(s.id));
+                      return (
+                        <tr key={r.id}>
+                          <td><input type="text" value={r.name} onChange={e => updateRow(p.id, r.id, { name: e.target.value })} placeholder="Nome mansione" /></td>
+                          <td className="c">
+                            <input className="qty" type="number" min="0" value={r.qty} onChange={e => updateRow(p.id, r.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} />
+                          </td>
+                          <td>
+                            <div className="mansione-people">
+                              {assigned.map(person => (
+                                <span className="person-chip" key={person.id}>
+                                  {person.name}
+                                  <button onClick={() => removePersonFromRow(p.id, r.id, person.id)} title="Togli">✕</button>
+                                </span>
+                              ))}
+                              <select value="" onChange={e => { addPersonToRow(p.id, r.id, e.target.value); e.target.value = ""; }} className={"add-person-select " + (full ? "full" : "")}>
+                                <option value="">{assigned.length}/{r.qty || 0} · + aggiungi…</option>
+                                {options.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              </select>
+                            </div>
+                          </td>
+                          <td className="c"><button className="row-del" onClick={() => removeRow(p.id, r.id)} title="Rimuovi mansione">✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
