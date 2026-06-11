@@ -255,6 +255,10 @@
   .mansioni-people .mp-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; }
   /* Mansioni: tabella per area con chip persone */
   .mansioni-table td { vertical-align: middle; }
+  .date-filter { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 12px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
+  .date-chip { flex: 0 0 auto; font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 0.04em; padding: 8px 14px; background: var(--cream-soft); border: 1.5px solid var(--ink); border-radius: 20px; cursor: pointer; color: var(--ink-soft); white-space: nowrap; }
+  .date-chip:hover { color: var(--ink); }
+  .date-chip.active { background: var(--green-deep); color: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
   .mansione-people { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .mansione-people .person-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--green-field); color: var(--cream); border-radius: 14px; padding: 3px 4px 3px 10px; font-family: 'Fraunces', serif; font-size: 12.5px; font-weight: 600; }
   .mansione-people .person-chip button { background: rgba(255,255,255,0.25); border: none; color: var(--cream); width: 17px; height: 17px; border-radius: 50%; cursor: pointer; font-size: 10px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
@@ -4621,137 +4625,221 @@ const DEFAULT_MANSIONI = {
 function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToast }) {
   const staffById = useMemo(() => { const m = {}; staff.forEach(s => m[s.id] = s); return m; }, [staff]);
 
-  // Persone disponibili per area = chi appare in quella posizione nell'ultima tabella turni (qualsiasi serata)
-  const peopleByArea = useMemo(() => {
-    const sets = {}; positions.forEach(p => sets[p.id] = new Set());
+  // Date del torneo presenti nell'ultima tabella turni (con almeno un'assegnazione)
+  const activeDates = useMemo(() => {
+    const isos = new Set();
     Object.entries(shifts || {}).forEach(([k, v]) => {
-      const posId = k.split("::")[1];
-      if (!sets[posId]) return;
       const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
-      arr.forEach(sid => sets[posId].add(sid));
+      if (arr.length) isos.add(k.split("::")[0]);
     });
+    return STAFF_DATES.filter(d => isos.has(d.iso));
+  }, [shifts]);
+
+  const [selDate, setSelDate] = useState("");
+  useEffect(() => {
+    if (activeDates.length && !activeDates.some(d => d.iso === selDate)) setSelDate(activeDates[0].iso);
+    if (!activeDates.length && selDate) setSelDate("");
+  }, [activeDates]);
+
+  // Pool persone per area NELLA DATA SELEZIONATA = chi è in quell'area quella serata nei turni
+  const poolByArea = useMemo(() => {
     const out = {};
-    Object.entries(sets).forEach(([pid, set]) => {
-      out[pid] = [...set].map(id => staffById[id]).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    positions.forEach(p => {
+      const v = shifts[selDate + "::" + p.id];
+      const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
+      out[p.id] = arr.map(id => staffById[id]).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
     });
     return out;
-  }, [shifts, positions, staffById]);
+  }, [shifts, positions, staffById, selDate]);
 
-  // Precarico le mansioni di default (per nome area) se non ce ne sono ancora
+  // Precarico la struttura mansioni di default (per nome area) se non ce ne sono ancora
   useEffect(() => {
     if (!positions.length) return;
     if (mansioni && Object.keys(mansioni).length > 0) return;
     const seed = {};
     positions.forEach(p => {
       const def = DEFAULT_MANSIONI[p.name.trim().toLowerCase()] || [];
-      seed[p.id] = def.map(([name, qty]) => ({ id: uid(), name, qty, people: [] }));
+      seed[p.id] = def.map(([name, qty]) => ({ id: uid(), name, qty, peopleByDate: {} }));
     });
     if (Object.keys(seed).length) setMansioni(seed);
   }, [positions]);
 
   const rowsOf = (pid) => (mansioni && Array.isArray(mansioni[pid])) ? mansioni[pid] : [];
   const setRows = (pid, newRows) => setMansioni(Object.assign({}, mansioni, { [pid]: newRows }));
-  const addRow = (pid) => setRows(pid, [...rowsOf(pid), { id: uid(), name: "", qty: 1, people: [] }]);
+  const addRow = (pid) => setRows(pid, [...rowsOf(pid), { id: uid(), name: "", qty: 1, peopleByDate: {} }]);
   const removeRow = (pid, rid) => setRows(pid, rowsOf(pid).filter(r => r.id !== rid));
   const updateRow = (pid, rid, patch) => setRows(pid, rowsOf(pid).map(r => r.id === rid ? Object.assign({}, r, patch) : r));
+  const peopleOnDate = (r, iso) => (r.peopleByDate && r.peopleByDate[iso]) ? r.peopleByDate[iso] : [];
   const addPersonToRow = (pid, rid, sid) => {
-    if (!sid) return;
+    if (!sid || !selDate) return;
     const r = rowsOf(pid).find(x => x.id === rid); if (!r) return;
-    const people = r.people || [];
-    if (people.includes(sid)) return;
-    updateRow(pid, rid, { people: [...people, sid] });
+    const cur = peopleOnDate(r, selDate);
+    if (cur.includes(sid)) return;
+    updateRow(pid, rid, { peopleByDate: Object.assign({}, r.peopleByDate, { [selDate]: [...cur, sid] }) });
   };
   const removePersonFromRow = (pid, rid, sid) => {
     const r = rowsOf(pid).find(x => x.id === rid); if (!r) return;
-    updateRow(pid, rid, { people: (r.people || []).filter(x => x !== sid) });
+    updateRow(pid, rid, { peopleByDate: Object.assign({}, r.peopleByDate, { [selDate]: peopleOnDate(r, selDate).filter(x => x !== sid) }) });
   };
   const resetDefaults = () => {
-    if (!confirm("Ripristino le mansioni predefinite per tutte le aree? Le assegnazioni di persone alle mansioni andranno perse.")) return;
+    if (!confirm("Ripristino le mansioni predefinite per tutte le aree? Le assegnazioni di persone alle mansioni (per tutte le date) andranno perse.")) return;
     const seed = {};
     positions.forEach(p => {
       const def = DEFAULT_MANSIONI[p.name.trim().toLowerCase()] || [];
-      seed[p.id] = def.map(([name, qty]) => ({ id: uid(), name, qty, people: [] }));
+      seed[p.id] = def.map(([name, qty]) => ({ id: uid(), name, qty, peopleByDate: {} }));
     });
     setMansioni(seed);
     showToast("Mansioni predefinite ripristinate");
   };
 
-  const hasAnyPeople = positions.some(p => (peopleByArea[p.id] || []).length > 0);
+  // Export PDF: una sezione per ogni giornata (stesso stile dell'export turni). dates = elenco giornate da includere.
+  const exportMansioniPDF = (dates) => {
+    try {
+      const list = (dates && dates.length) ? dates : activeDates;
+      const single = list.length === 1;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Mansioni" + (single ? " · " + list[0].label : " per giornata"), 14, 16);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
+      doc.setTextColor(0);
+      let y = 30, any = false;
+      list.forEach(d => {
+        const body = [];
+        positions.forEach(p => {
+          rowsOf(p.id).forEach(r => {
+            const names = peopleOnDate(r, d.iso).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
+            if (!(r.name || "").trim() && names.length === 0) return;
+            body.push([p.name, r.name || "—", String(r.qty || 0), names.join(", ") || "—"]);
+          });
+        });
+        if (body.length === 0) return;
+        any = true;
+        if (y > 178) { doc.addPage(); y = 18; }
+        doc.setFillColor(13, 40, 24); doc.setTextColor(232, 185, 72);
+        doc.rect(14, y - 4, 269, 7, "F");
+        doc.setFontSize(12); doc.setFont("helvetica", "bold");
+        doc.text(d.label + "  ·  " + d.phase, 16, y + 1);
+        doc.setTextColor(0);
+        y += 6;
+        doc.autoTable({
+          startY: y, head: [["Area", "Mansione", "Q.tà", "Persone"]], body, theme: "grid",
+          styles: { fontSize: 9, cellPadding: 2, valign: "top", lineColor: [180, 180, 180] },
+          headStyles: { fillColor: [240, 234, 199], textColor: [50, 50, 50], fontStyle: "bold" },
+          columnStyles: { 0: { cellWidth: 34, fontStyle: "bold", fillColor: [247, 243, 230] }, 1: { cellWidth: 64 }, 2: { cellWidth: 16, halign: "center" } },
+          margin: { left: 14, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      });
+      if (!any) { alert(single ? "Nessuna mansione assegnata per questa giornata." : "Nessuna mansione assegnata da esportare."); return; }
+      const suffix = single ? list[0].iso : new Date().toISOString().slice(0, 10);
+      doc.save("TdP-Mansioni-" + suffix + ".pdf");
+      showToast(single ? "PDF giornata esportato" : "PDF mansioni esportato");
+    } catch (e) { alert("Errore export PDF: " + e.message); }
+  };
+
+  const hasAnyPeople = positions.some(p => (poolByArea[p.id] || []).length > 0);
+
 
   return (
     <>
       <div className="section-head">
         <div>
           <h1>Mansioni specifiche</h1>
-          <div className="subtitle">Assegna ogni persona dei turni alla sua mansione, area per area</div>
+          <div className="subtitle">Assegna le mansioni per ogni giornata · le persone si pescano dai turni di quella serata</div>
         </div>
-        <button className="btn btn-sm" onClick={resetDefaults} title="Ripristina l'elenco mansioni predefinito">↺ Mansioni predefinite</button>
+        <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+          {activeDates.length > 0 && selDate && <button className="btn btn-sm btn-gold" onClick={() => exportMansioniPDF(activeDates.filter(d => d.iso === selDate))} title="Esporta solo la giornata selezionata in PDF">📄 PDF giornata</button>}
+          {activeDates.length > 0 && <button className="btn btn-sm btn-gold" onClick={() => exportMansioniPDF(activeDates)} title="Esporta tutte le giornate in PDF">📄 PDF tutte</button>}
+          <button className="btn btn-sm" onClick={resetDefaults} title="Ripristina l'elenco mansioni predefinito">↺ Predefinite</button>
+        </div>
       </div>
 
-      {!hasAnyPeople && (
-        <p style={{fontSize:13, color:"var(--terracotta-dark)", marginBottom:16, fontStyle:"italic"}}>
-          Nessuna persona nei turni: i menù “aggiungi persona” saranno vuoti finché non compili la tabella turni (importa il sondaggio o assegna le aree nella mappatura).
-        </p>
-      )}
+      {activeDates.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">📅</div>
+          <h3>Nessuna giornata nei turni</h3>
+          <p>Compila prima i turni (importa il sondaggio o assegna le aree nella mappatura). Le giornate del torneo compariranno qui come filtro, e per ognuna potrai assegnare le mansioni.</p>
+        </div>
+      ) : (
+      <>
+        {/* FILTRO DATE */}
+        <div className="date-filter">
+          {activeDates.map(d => (
+            <button key={d.iso} className={"date-chip " + (selDate === d.iso ? "active" : "")} onClick={() => setSelDate(d.iso)}>
+              {d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}
+            </button>
+          ))}
+        </div>
 
-      {positions.map(p => {
-        const available = peopleByArea[p.id] || [];
-        const rows = rowsOf(p.id);
-        return (
-          <div className="shifts-panel" key={p.id}>
-            <div className="shifts-panel-head" style={{borderLeft: "6px solid " + p.color, paddingLeft: 12}}>
-              <h3>{p.name} <span style={{color:"var(--ink-soft)", fontFamily:"'JetBrains Mono', monospace", fontSize:12, fontWeight:400}}>· {available.length} in turno</span></h3>
-              <button className="btn btn-sm btn-primary" onClick={() => addRow(p.id)}>+ Mansione</button>
-            </div>
-            {rows.length === 0 ? (
-              <p style={{fontStyle:"italic", color:"var(--ink-soft)", padding:"10px 2px", fontSize:13}}>Nessuna mansione. Aggiungine una con “+ Mansione”.</p>
-            ) : (
-              <div className="extra-table-wrap">
-                <table className="extra-table mansioni-table">
-                  <thead>
-                    <tr>
-                      <th style={{minWidth:170}}>Mansione</th>
-                      <th className="c" style={{width:90}}>Q.tà rich.</th>
-                      <th>Persone assegnate</th>
-                      <th className="c" style={{width:40}}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(r => {
-                      const assigned = (r.people || []).map(sid => staffById[sid]).filter(Boolean);
-                      const full = assigned.length >= (Number(r.qty) || 0);
-                      const options = available.filter(s => !(r.people || []).includes(s.id));
-                      return (
-                        <tr key={r.id}>
-                          <td><input type="text" value={r.name} onChange={e => updateRow(p.id, r.id, { name: e.target.value })} placeholder="Nome mansione" /></td>
-                          <td className="c">
-                            <input className="qty" type="number" min="0" value={r.qty} onChange={e => updateRow(p.id, r.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} />
-                          </td>
-                          <td>
-                            <div className="mansione-people">
-                              {assigned.map(person => (
-                                <span className="person-chip" key={person.id}>
-                                  {person.name}
-                                  <button onClick={() => removePersonFromRow(p.id, r.id, person.id)} title="Togli">✕</button>
-                                </span>
-                              ))}
-                              <select value="" onChange={e => { addPersonToRow(p.id, r.id, e.target.value); e.target.value = ""; }} className={"add-person-select " + (full ? "full" : "")}>
-                                <option value="">{assigned.length}/{r.qty || 0} · + aggiungi…</option>
-                                {options.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                              </select>
-                            </div>
-                          </td>
-                          <td className="c"><button className="row-del" onClick={() => removeRow(p.id, r.id)} title="Rimuovi mansione">✕</button></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        {!hasAnyPeople && (
+          <p style={{fontSize:13, color:"var(--terracotta-dark)", marginBottom:16, fontStyle:"italic"}}>
+            In questa serata non c'è nessuno assegnato nei turni: i menù “aggiungi persona” saranno vuoti. Assegna le persone alle aree nella tabella turni per questa data.
+          </p>
+        )}
+
+        {positions.map(p => {
+          const available = poolByArea[p.id] || [];
+          const rows = rowsOf(p.id);
+          return (
+            <div className="shifts-panel" key={p.id}>
+              <div className="shifts-panel-head" style={{borderLeft: "6px solid " + p.color, paddingLeft: 12}}>
+                <h3>{p.name} <span style={{color:"var(--ink-soft)", fontFamily:"'JetBrains Mono', monospace", fontSize:12, fontWeight:400}}>· {available.length} in turno questa sera</span></h3>
+                <button className="btn btn-sm btn-primary" onClick={() => addRow(p.id)}>+ Mansione</button>
               </div>
-            )}
-          </div>
-        );
-      })}
+              {rows.length === 0 ? (
+                <p style={{fontStyle:"italic", color:"var(--ink-soft)", padding:"10px 2px", fontSize:13}}>Nessuna mansione. Aggiungine una con “+ Mansione”.</p>
+              ) : (
+                <div className="extra-table-wrap">
+                  <table className="extra-table mansioni-table">
+                    <thead>
+                      <tr>
+                        <th style={{minWidth:170}}>Mansione</th>
+                        <th className="c" style={{width:90}}>Q.tà rich.</th>
+                        <th>Persone assegnate (questa giornata)</th>
+                        <th className="c" style={{width:40}}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(r => {
+                        const dayPeople = peopleOnDate(r, selDate);
+                        const assigned = dayPeople.map(sid => staffById[sid]).filter(Boolean);
+                        const full = assigned.length >= (Number(r.qty) || 0);
+                        const options = available.filter(s => !dayPeople.includes(s.id));
+                        return (
+                          <tr key={r.id}>
+                            <td><input type="text" value={r.name} onChange={e => updateRow(p.id, r.id, { name: e.target.value })} placeholder="Nome mansione" /></td>
+                            <td className="c">
+                              <input className="qty" type="number" min="0" value={r.qty} onChange={e => updateRow(p.id, r.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} />
+                            </td>
+                            <td>
+                              <div className="mansione-people">
+                                {assigned.map(person => (
+                                  <span className="person-chip" key={person.id}>
+                                    {person.name}
+                                    <button onClick={() => removePersonFromRow(p.id, r.id, person.id)} title="Togli">✕</button>
+                                  </span>
+                                ))}
+                                <select value="" onChange={e => { addPersonToRow(p.id, r.id, e.target.value); e.target.value = ""; }} className={"add-person-select " + (full ? "full" : "")}>
+                                  <option value="">{assigned.length}/{r.qty || 0} · + aggiungi…</option>
+                                  {options.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                              </div>
+                            </td>
+                            <td className="c"><button className="row-del" onClick={() => removeRow(p.id, r.id)} title="Rimuovi mansione">✕</button></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </>
+      )}
     </>
   );
 }
