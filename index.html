@@ -1893,7 +1893,7 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
             <div style={{padding:"24px", background:"var(--cream-soft)", border:"1.5px dashed var(--ink)", borderRadius:4, textAlign:"center", marginBottom: 14}}>
               <div style={{fontSize:48, marginBottom:8}}>📊</div>
               <p style={{marginBottom:14, fontStyle:"italic"}}>Seleziona il file .xlsx con squadre e giocatori</p>
-              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{display:"none"}} />
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleFile} style={{display:"none"}} />
               <button className="btn btn-primary" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
                 Scegli file Excel
               </button>
@@ -3396,7 +3396,7 @@ function InventoryImportModal({ onImport, onCancel, existingCount }) {
             <div style={{padding:"24px", background:"var(--cream-soft)", border:"1.5px dashed var(--ink)", borderRadius:4, textAlign:"center", marginBottom: 14}}>
               <div style={{fontSize:48, marginBottom:8}}>📊</div>
               <p style={{marginBottom:14, fontStyle:"italic"}}>Seleziona il file .xlsx con la lista materiale</p>
-              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{display:"none"}} />
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleFile} style={{display:"none"}} />
               <button className="btn btn-primary" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
                 Scegli file Excel
               </button>
@@ -4257,7 +4257,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
         <div className="shifts-panel-head">
           <h3>Staff ({staff.length})</h3>
           <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-            <input ref={surveyInputRef} type="file" accept=".xlsx,.xls" onChange={handleSurveyFile} style={{display:"none"}} />
+            <input ref={surveyInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleSurveyFile} style={{display:"none"}} />
             <button className="btn btn-sm btn-gold" onClick={() => surveyInputRef.current && surveyInputRef.current.click()} title="Importa presenze dallo sheet Sondaggio (.xlsx)">📥 Importa sondaggio</button>
             <button className="btn btn-sm btn-primary" onClick={() => setAddingStaff(!addingStaff)}>
               {addingStaff ? "Annulla" : "+ Aggiungi persona"}
@@ -4964,7 +4964,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
           <div className="shifts-panel-head">
             <h3>Assicurazioni ({insurance.length})</h3>
             <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-              <input ref={insInputRef} type="file" accept=".xlsx,.xls" onChange={handleInsFile} style={{display:"none"}} />
+              <input ref={insInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleInsFile} style={{display:"none"}} />
               <button className="btn btn-sm btn-gold" onClick={() => insInputRef.current && insInputRef.current.click()} title="Importa lo sheet Dati assicurazioni">📥 Importa</button>
               {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsExcel}>📊 Excel</button>}
               <button className="btn btn-sm btn-primary" onClick={addInsRow}>+ Riga</button>
@@ -5028,7 +5028,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
           <div className="shifts-panel-head">
             <h3>Maglie ({shirts.length})</h3>
             <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-              <input ref={shirtInputRef} type="file" accept=".xlsx,.xls" onChange={handleShirtFile} style={{display:"none"}} />
+              <input ref={shirtInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleShirtFile} style={{display:"none"}} />
               <button className="btn btn-sm btn-gold" onClick={() => shirtInputRef.current && shirtInputRef.current.click()} title="Importa lo sheet Gestione maglie">📥 Importa</button>
               {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsExcel}>📊 Excel</button>}
               <button className="btn btn-sm btn-primary" onClick={addShirtPerson}>+ Persona</button>
