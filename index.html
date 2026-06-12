@@ -4966,6 +4966,34 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
     } catch (e) { alert("Errore export: " + e.message); }
   };
 
+  const exportInsPDF = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Assicurazioni", 14, 16);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
+      doc.setTextColor(0);
+      const head = [["Assic.", "Nome e cognome", "Data di nascita", "Luogo di nascita", "Indirizzo", "Residenza", "Codice Fiscale"]];
+      const body = insurance.map(p => [p.insured ? "SI" : "", p.name || "", p.birthDate || "", p.birthPlace || "", p.address || "", p.residence || "", p.fiscalCode || ""]);
+      doc.autoTable({
+        startY: 28, head, body, theme: "grid",
+        styles: { fontSize: 8.5, cellPadding: 1.8, lineColor: [180, 180, 180], overflow: "linebreak" },
+        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 14, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 42 }, 2: { cellWidth: 26, halign: "center" }, 6: { cellWidth: 38 } },
+        margin: { left: 14, right: 14 },
+      });
+      let y = doc.lastAutoTable.finalY + 8;
+      if (y > 185) { doc.addPage(); y = 18; }
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text("Nominativi: " + insTotals.total + "      Già assicurati: " + insTotals.already + "      Da assicurare: " + insTotals.toInsure, 14, y);
+      doc.text("Costo stimato (" + perPerson + " €/persona): € " + insTotals.cost, 14, y + 7);
+      doc.save("TdP-Assicurazioni-" + new Date().toISOString().slice(0, 10) + ".pdf");
+      showToast("PDF assicurazioni esportato");
+    } catch (e) { alert("Errore export PDF: " + e.message); }
+  };
+
   // ====== MAGLIE (per persona: maglie e canottiere separate, taglia, ritiro) ======
   const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "3XL", "4XL"];
   const sizeRank = (s) => { const i = SIZE_ORDER.indexOf((s || "").toUpperCase()); return i < 0 ? 999 : i; };
@@ -5055,10 +5083,10 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
 
   const exportShirtsExcel = () => {
     try {
-      const aoa = [["Nome", "Taglia", "Q Maglie", "Q Canottiere", "Ritiro"]];
+      const aoa = [["Nome", "Taglia", "Q Maglie", "Q Canotte", "Ritiro"]];
       (shirts || []).forEach(p => aoa.push([p.name || "", p.size || "", Number(p.qMaglie) || 0, Number(p.qCanottiere) || 0, ritLabel(p.ritiro)]));
       aoa.push([]);
-      aoa.push(["RIEPILOGO ORDINE", "Taglia", "Maglie", "Canottiere"]);
+      aoa.push(["RIEPILOGO ORDINE", "Taglia", "Maglie", "Canotte"]);
       orderSummary.sizeRows.forEach(r => aoa.push(["", r.size, r.maglie, r.canottiere]));
       aoa.push(["TOTALE", "", orderSummary.totMaglie, orderSummary.totCanottiere]);
       const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -5080,7 +5108,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
       doc.setTextColor(0);
       const body = (shirts || []).map(p => [p.name || "", p.size || "", String(Number(p.qMaglie) || 0), String(Number(p.qCanottiere) || 0), ritLabel(p.ritiro)]);
       doc.autoTable({
-        startY: 28, head: [["Nome", "Taglia", "Q Maglie", "Q Canottiere", "Ritiro"]], body, theme: "grid",
+        startY: 28, head: [["Nome", "Taglia", "Q Maglie", "Q Canotte", "Ritiro"]], body, theme: "grid",
         styles: { fontSize: 9.5, cellPadding: 2, lineColor: [180, 180, 180] },
         headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
         columnStyles: { 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" } },
@@ -5089,9 +5117,9 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
       let y = doc.lastAutoTable.finalY + 8;
       doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Riepilogo ordine", 14, y); y += 6;
       doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      orderSummary.sizeRows.forEach(r => { doc.text("Taglia " + r.size + ":   Maglie " + r.maglie + "  ·  Canottiere " + r.canottiere, 16, y); y += 5; });
+      orderSummary.sizeRows.forEach(r => { doc.text("Taglia " + r.size + ":   Maglie " + r.maglie + "  ·  Canotte " + r.canottiere, 16, y); y += 5; });
       doc.setFont("helvetica", "bold");
-      doc.text("TOTALE:   Maglie " + orderSummary.totMaglie + "  ·  Canottiere " + orderSummary.totCanottiere, 14, y + 1);
+      doc.text("TOTALE:   Maglie " + orderSummary.totMaglie + "  ·  Canotte " + orderSummary.totCanottiere, 14, y + 1);
       doc.save("TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".pdf");
       showToast("PDF maglie esportato");
     } catch (e) { alert("Errore export PDF: " + e.message); }
@@ -5116,6 +5144,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
               <input ref={insInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleInsFile} style={{display:"none"}} />
               <button className="btn btn-sm btn-gold" onClick={() => insInputRef.current && insInputRef.current.click()} title="Importa lo sheet Dati assicurazioni">📥 Importa</button>
+              {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsPDF}>📄 PDF</button>}
               {insurance.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportInsExcel}>📊 Excel</button>}
               <button className="btn btn-sm btn-primary" onClick={addInsRow}>+ Riga</button>
             </div>
@@ -5188,7 +5217,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
 
           <div className="extra-summary">
             <div className="extra-card highlight"><div className="lbl">Totale maglie</div><div className="val">{orderSummary.totMaglie}</div></div>
-            <div className="extra-card highlight"><div className="lbl">Totale canottiere</div><div className="val">{orderSummary.totCanottiere}</div></div>
+            <div className="extra-card highlight"><div className="lbl">Totale canotte</div><div className="val">{orderSummary.totCanottiere}</div></div>
             <div className="extra-card"><div className="lbl">Ritiri</div><div className="val">{orderSummary.ritTot}<span style={{fontSize:13, color:"var(--ink-soft)"}}> tot</span> · {orderSummary.ritParz}<span style={{fontSize:13, color:"var(--ink-soft)"}}> parz</span></div></div>
           </div>
 
@@ -5212,7 +5241,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
                     <th style={{minWidth:150}}>Nome</th>
                     <th>Taglia</th>
                     <th className="c">Q Maglie</th>
-                    <th className="c">Q Canottiere</th>
+                    <th className="c">Q Canotte</th>
                     <th style={{minWidth:120}}>Ritiro</th>
                     <th className="c"></th>
                   </tr>
@@ -5283,12 +5312,12 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div className="modal-head">
               <h2>Importa gestione maglie</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                Foglio “{shirtPreview.sheet}” · {shirtPreview.people.length} persone · {shirtPreview.people.reduce((a,p)=>a+(p.qMaglie||0),0)} maglie · {shirtPreview.people.reduce((a,p)=>a+(p.qCanottiere||0),0)} canottiere
+                Foglio “{shirtPreview.sheet}” · {shirtPreview.people.length} persone · {shirtPreview.people.reduce((a,p)=>a+(p.qMaglie||0),0)} maglie · {shirtPreview.people.reduce((a,p)=>a+(p.qCanottiere||0),0)} canotte
               </div>
             </div>
             <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
               <table className="extra-table">
-                <thead><tr><th>Nome</th><th>Taglia</th><th className="c">Q Maglie</th><th className="c">Q Canottiere</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Taglia</th><th className="c">Q Maglie</th><th className="c">Q Canotte</th></tr></thead>
                 <tbody>
                   {shirtPreview.people.map((p, i) => (
                     <tr key={i}>
