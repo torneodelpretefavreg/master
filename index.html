@@ -5024,8 +5024,9 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
         const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array", cellDates: true });
         const sn = wb.SheetNames.find(n => /magli/i.test(n)) || wb.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
-        const hr = findHeaderRow(rows, { name: /persona/i, size: /taglia/i, qty: /quantit/i, type: /tipologia/i });
+        const hr = findHeaderRow(rows, { name: /persona|nome/i, size: /taglia/i, qty: /quantit/i, type: /tipologia/i, qMagl: /magli/i, qCanot: /canott/i });
         if (!hr) { alert('Non ho trovato la colonna "PERSONA" nello sheet "' + sn + '".'); return; }
+        const splitCols = (hr.cols.qMagl != null || hr.cols.qCanot != null);
         const byName = {}; const order = [];
         for (let i = hr.idx + 1; i < rows.length; i++) {
           const r = rows[i] || [];
@@ -5033,15 +5034,23 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
           if (!name) continue;
           if (/^totale/i.test(name)) break;
           const size = hr.cols.size != null && r[hr.cols.size] != null ? String(r[hr.cols.size]).trim().toUpperCase() : "";
-          const typeRaw = hr.cols.type != null && r[hr.cols.type] != null ? String(r[hr.cols.type]).trim() : "";
-          const qtyRaw = hr.cols.qty != null ? r[hr.cols.qty] : null;
-          const hasInfo = !!(size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0));
-          const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : (hasInfo ? 1 : 0);
           const k = name.toLowerCase();
           if (!byName[k]) { byName[k] = { name, size: "", qMaglie: 0, qCanottiere: 0 }; order.push(k); }
           const rec = byName[k];
-          if (/canott/i.test(typeRaw)) rec.qCanottiere += qty;
-          else if (typeRaw || hasInfo) rec.qMaglie += qty;
+          if (splitCols) {
+            // Colonne dedicate "q maglie" e "q canotte"
+            const numAt = (c) => (c != null && r[c] != null && !isNaN(Number(r[c]))) ? Number(r[c]) : 0;
+            rec.qMaglie += numAt(hr.cols.qMagl);
+            rec.qCanottiere += numAt(hr.cols.qCanot);
+          } else {
+            // Schema legacy: Tipologia + Quantità
+            const typeRaw = hr.cols.type != null && r[hr.cols.type] != null ? String(r[hr.cols.type]).trim() : "";
+            const qtyRaw = hr.cols.qty != null ? r[hr.cols.qty] : null;
+            const hasInfo = !!(size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0));
+            const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : (hasInfo ? 1 : 0);
+            if (/canott/i.test(typeRaw)) rec.qCanottiere += qty;
+            else if (typeRaw || hasInfo) rec.qMaglie += qty;
+          }
           if (size && !rec.size) rec.size = size;
         }
         const people = order.map(k => byName[k]);
