@@ -278,6 +278,7 @@
   .extra-table .row-del { background: none; border: none; cursor: pointer; color: var(--terracotta-dark); font-size: 15px; opacity: 0.6; }
   .extra-table .row-del:hover { opacity: 1; }
   .extra-table tr.insured-row { background: rgba(45,143,90,0.10); }
+  .extra-table tr.partial-row { background: rgba(232,185,72,0.14); }
   .extra-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 4px 0 16px; }
   .extra-card { background: var(--cream-soft); border: 1.5px solid var(--ink); border-radius: 3px; padding: 10px 12px; box-shadow: 2px 2px 0 var(--ink); }
   .extra-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -691,6 +692,23 @@ const STAFF_DATES = [
   { iso: "2026-07-18", label: "Sab 18 lug", phase: "Festa" },
   { iso: "2026-07-19", label: "Dom 19 lug", phase: "Finale Mondiali" },
 ];
+
+// Formatta una data (oggetto Date, seriale Excel o stringa) in formato italiano gg/mm/aaaa
+function fmtDateIT(v) {
+  if (v == null || v === "") return "";
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    return String(v.getDate()).padStart(2, "0") + "/" + String(v.getMonth() + 1).padStart(2, "0") + "/" + v.getFullYear();
+  }
+  if (typeof v === "number" && isFinite(v)) {
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    if (!isNaN(d.getTime())) return String(d.getUTCDate()).padStart(2, "0") + "/" + String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear();
+  }
+  const s = String(v).trim();
+  // ISO yyyy-mm-dd -> gg/mm/aaaa
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[3] + "/" + m[2] + "/" + m[1];
+  return s;
+}
 
 const MESI_IT = { gennaio:1, febbraio:2, marzo:3, aprile:4, maggio:5, giugno:6, luglio:7, agosto:8, settembre:9, ottobre:10, novembre:11, dicembre:12 };
 // Converte intestazioni tipo "LUNEDI 22 GIUGNO" o "SABATO 18 LUGLIO (FESTA FINALE)" in ISO.
@@ -4890,7 +4908,7 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
           if (/^totale/i.test(name)) break;
           const insuredCell = hr.cols.insured != null ? r[hr.cols.insured] : null;
           people.push({
-            name, birthDate: get(r, "birthDate"), birthPlace: get(r, "birthPlace"),
+            name, birthDate: fmtDateIT(hr.cols.birthDate != null ? r[hr.cols.birthDate] : ""), birthPlace: get(r, "birthPlace"),
             address: get(r, "address"), residence: get(r, "residence"), fiscalCode: get(r, "fiscalCode").toUpperCase(),
             insured: insuredCell != null && String(insuredCell).trim() !== "",
           });
@@ -4948,7 +4966,28 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
     } catch (e) { alert("Errore export: " + e.message); }
   };
 
-  // ====== MAGLIE ======
+  // ====== MAGLIE (per persona: maglie e canottiere separate, taglia, ritiro) ======
+  const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "3XL", "4XL"];
+  const sizeRank = (s) => { const i = SIZE_ORDER.indexOf((s || "").toUpperCase()); return i < 0 ? 999 : i; };
+
+  // Migrazione una-tantum dai vecchi formati (items[] o item piatto) al nuovo per-persona
+  useEffect(() => {
+    const list = shirts || [];
+    if (!list.length) return;
+    const isOld = list.some(s => s && (Array.isArray(s.items) || s.type !== undefined));
+    if (!isOld) return;
+    const byName = {}; const order = [];
+    const ensure = (name) => { const k = (name || "").trim().toLowerCase(); if (!byName[k]) { byName[k] = { id: uid(), name: name || "", size: "", qMaglie: 0, qCanottiere: 0, ritiro: "" }; order.push(k); } return byName[k]; };
+    const add = (rec, type, size, qty, collected) => { const q = Number(qty) || 0; if (/canott/i.test(type || "")) rec.qCanottiere += q; else rec.qMaglie += q; if (size && !rec.size) rec.size = String(size).toUpperCase(); if (collected && !rec.ritiro) rec.ritiro = "totale"; };
+    list.forEach(s => {
+      if (!s) return;
+      const rec = ensure(s.name);
+      if (Array.isArray(s.items)) s.items.forEach(it => add(rec, it.type, it.size, it.qty, it.collected));
+      else if (s.type !== undefined) add(rec, s.type, s.size, s.qty, s.collected);
+    });
+    setShirts(order.map(k => byName[k]));
+  }, [shirts]);
+
   const handleShirtFile = (e) => {
     const file = e.target.files[0]; e.target.value = ""; if (!file) return;
     const reader = new FileReader();
@@ -4959,22 +4998,25 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
         const hr = findHeaderRow(rows, { name: /persona/i, size: /taglia/i, qty: /quantit/i, type: /tipologia/i });
         if (!hr) { alert('Non ho trovato la colonna "PERSONA" nello sheet "' + sn + '".'); return; }
-        const people = [];
+        const byName = {}; const order = [];
         for (let i = hr.idx + 1; i < rows.length; i++) {
           const r = rows[i] || [];
           const name = hr.cols.name != null && r[hr.cols.name] != null ? String(r[hr.cols.name]).trim() : "";
           if (!name) continue;
           if (/^totale/i.test(name)) break;
-          const size = hr.cols.size != null && r[hr.cols.size] != null ? String(r[hr.cols.size]).trim() : "";
+          const size = hr.cols.size != null && r[hr.cols.size] != null ? String(r[hr.cols.size]).trim().toUpperCase() : "";
           const typeRaw = hr.cols.type != null && r[hr.cols.type] != null ? String(r[hr.cols.type]).trim() : "";
           const qtyRaw = hr.cols.qty != null ? r[hr.cols.qty] : null;
-          const items = [];
-          if (size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0)) {
-            const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : 1;
-            items.push({ id: uid(), type: /canott/i.test(typeRaw) ? "Canottiera" : "Maglia", size, qty, collected: false });
-          }
-          people.push({ name, items });
+          const hasInfo = !!(size || typeRaw || (qtyRaw != null && Number(qtyRaw) > 0));
+          const qty = (qtyRaw != null && !isNaN(Number(qtyRaw)) && Number(qtyRaw) > 0) ? Number(qtyRaw) : (hasInfo ? 1 : 0);
+          const k = name.toLowerCase();
+          if (!byName[k]) { byName[k] = { name, size: "", qMaglie: 0, qCanottiere: 0 }; order.push(k); }
+          const rec = byName[k];
+          if (/canott/i.test(typeRaw)) rec.qCanottiere += qty;
+          else if (typeRaw || hasInfo) rec.qMaglie += qty;
+          if (size && !rec.size) rec.size = size;
         }
+        const people = order.map(k => byName[k]);
         if (!people.length) { alert("Nessun nominativo trovato nel foglio."); return; }
         setShirtPreview({ people, sheet: sn });
       } catch (err) { alert("Errore lettura file: " + err.message); }
@@ -4985,54 +5027,74 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
 
   const applyShirtImport = () => {
     if (!shirtPreview) return;
-    const byName = {}; shirts.forEach(p => { byName[p.name.trim().toLowerCase()] = p; });
-    const list = shirts.slice(); let added = 0, updated = 0;
-    shirtPreview.people.forEach(p => {
-      const ex = byName[p.name.toLowerCase()];
-      if (ex) {
-        const idx = list.findIndex(x => x.id === ex.id);
-        list[idx] = Object.assign({}, ex, { items: [...(ex.items || []), ...p.items.map(it => Object.assign({}, it, { id: uid() }))] });
-        updated++;
-      } else { list.push({ id: uid(), name: p.name, items: p.items }); added++; }
-    });
-    setShirts(list); setShirtPreview(null);
-    showToast(added + " aggiunti · " + updated + " aggiornati");
+    setShirts(shirtPreview.people.map(p => ({ id: uid(), name: p.name, size: p.size || "", qMaglie: p.qMaglie || 0, qCanottiere: p.qCanottiere || 0, ritiro: "" })));
+    setShirtPreview(null);
+    showToast(shirtPreview.people.length + " righe importate");
   };
 
-  const addShirtPerson = () => setShirts([...shirts, { id: uid(), name: "", items: [] }]);
-  const removeShirtPerson = (id) => { if (!confirm("Rimuovere questo nominativo dalla lista maglie?")) return; setShirts(shirts.filter(p => p.id !== id)); };
-  const updateShirtName = (id, name) => setShirts(shirts.map(p => p.id === id ? Object.assign({}, p, { name }) : p));
-  const addItem = (pid) => setShirts(shirts.map(p => p.id === pid ? Object.assign({}, p, { items: [...(p.items || []), { id: uid(), type: "Maglia", size: "", qty: 1, collected: false }] }) : p));
-  const updateItem = (pid, iid, patch) => setShirts(shirts.map(p => p.id === pid ? Object.assign({}, p, { items: p.items.map(it => it.id === iid ? Object.assign({}, it, patch) : it) }) : p));
-  const removeItem = (pid, iid) => setShirts(shirts.map(p => p.id === pid ? Object.assign({}, p, { items: p.items.filter(it => it.id !== iid) }) : p));
+  const addRow = () => setShirts([...(shirts || []), { id: uid(), name: "", size: "", qMaglie: 0, qCanottiere: 0, ritiro: "" }]);
+  const removeRow = (id) => setShirts(shirts.filter(p => p.id !== id));
+  const updateRow = (id, patch) => setShirts(shirts.map(p => p.id === id ? Object.assign({}, p, patch) : p));
 
   const orderSummary = useMemo(() => {
-    const map = {}; let totalQty = 0, collectedQty = 0;
-    shirts.forEach(p => (p.items || []).forEach(it => {
-      const q = Number(it.qty) || 0; totalQty += q; if (it.collected) collectedQty += q;
-      const key = it.type + " · " + (it.size || "—"); map[key] = (map[key] || 0) + q;
-    }));
-    const rows = Object.entries(map).map(([k, v]) => ({ k, v })).sort((a, b) => a.k.localeCompare(b.k));
-    return { rows, totalQty, collectedQty, pendingQty: totalQty - collectedQty };
+    let totMaglie = 0, totCanottiere = 0, ritTot = 0, ritParz = 0;
+    const bySize = {};
+    (shirts || []).forEach(p => {
+      const m = Number(p.qMaglie) || 0, c = Number(p.qCanottiere) || 0;
+      totMaglie += m; totCanottiere += c;
+      if (p.ritiro === "totale") ritTot++; else if (p.ritiro === "parziale") ritParz++;
+      const s = (p.size || "—").toUpperCase();
+      if (!bySize[s]) bySize[s] = { maglie: 0, canottiere: 0 };
+      bySize[s].maglie += m; bySize[s].canottiere += c;
+    });
+    const sizeRows = Object.entries(bySize).map(([size, v]) => ({ size, maglie: v.maglie, canottiere: v.canottiere })).filter(r => r.maglie || r.canottiere).sort((a, b) => sizeRank(a.size) - sizeRank(b.size) || a.size.localeCompare(b.size));
+    return { totMaglie, totCanottiere, ritTot, ritParz, sizeRows };
   }, [shirts]);
+
+  const ritLabel = (v) => v === "totale" ? "Totale" : (v === "parziale" ? "Parziale" : "");
 
   const exportShirtsExcel = () => {
     try {
-      const aoa = [["Persona", "Tipologia", "Taglia", "Quantità", "Ritirata"]];
-      shirts.forEach(p => {
-        if (!p.items || p.items.length === 0) { aoa.push([p.name, "", "", "", ""]); return; }
-        p.items.forEach(it => aoa.push([p.name, it.type, it.size || "", Number(it.qty) || 0, it.collected ? "SI" : ""]));
-      });
+      const aoa = [["Nome", "Taglia", "Q Maglie", "Q Canottiere", "Ritiro"]];
+      (shirts || []).forEach(p => aoa.push([p.name || "", p.size || "", Number(p.qMaglie) || 0, Number(p.qCanottiere) || 0, ritLabel(p.ritiro)]));
       aoa.push([]);
-      aoa.push(["RIEPILOGO ORDINE (tipologia · taglia)", "", "", "Quantità"]);
-      orderSummary.rows.forEach(r => aoa.push([r.k, "", "", r.v]));
-      aoa.push(["TOTALE DA ORDINARE", "", "", orderSummary.totalQty]);
+      aoa.push(["RIEPILOGO ORDINE", "Taglia", "Maglie", "Canottiere"]);
+      orderSummary.sizeRows.forEach(r => aoa.push(["", r.size, r.maglie, r.canottiere]));
+      aoa.push(["TOTALE", "", orderSummary.totMaglie, orderSummary.totCanottiere]);
       const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+      ws["!cols"] = [{ wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 10 }];
       XLSX.utils.book_append_sheet(wb, ws, "Maglie");
       XLSX.writeFile(wb, "TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".xlsx");
       showToast("Excel maglie esportato");
     } catch (e) { alert("Errore export: " + e.message); }
+  };
+
+  const exportShirtsPDF = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Maglie", 14, 16);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
+      doc.setTextColor(0);
+      const body = (shirts || []).map(p => [p.name || "", p.size || "", String(Number(p.qMaglie) || 0), String(Number(p.qCanottiere) || 0), ritLabel(p.ritiro)]);
+      doc.autoTable({
+        startY: 28, head: [["Nome", "Taglia", "Q Maglie", "Q Canottiere", "Ritiro"]], body, theme: "grid",
+        styles: { fontSize: 9.5, cellPadding: 2, lineColor: [180, 180, 180] },
+        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
+        columnStyles: { 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" } },
+        margin: { left: 14, right: 14 },
+      });
+      let y = doc.lastAutoTable.finalY + 8;
+      doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Riepilogo ordine", 14, y); y += 6;
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      orderSummary.sizeRows.forEach(r => { doc.text("Taglia " + r.size + ":   Maglie " + r.maglie + "  ·  Canottiere " + r.canottiere, 16, y); y += 5; });
+      doc.setFont("helvetica", "bold");
+      doc.text("TOTALE:   Maglie " + orderSummary.totMaglie + "  ·  Canottiere " + orderSummary.totCanottiere, 14, y + 1);
+      doc.save("TdP-Maglie-" + new Date().toISOString().slice(0, 10) + ".pdf");
+      showToast("PDF maglie esportato");
+    } catch (e) { alert("Errore export PDF: " + e.message); }
   };
 
   return (
@@ -5118,63 +5180,58 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
               <input ref={shirtInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleShirtFile} style={{display:"none"}} />
               <button className="btn btn-sm btn-gold" onClick={() => shirtInputRef.current && shirtInputRef.current.click()} title="Importa lo sheet Gestione maglie">📥 Importa</button>
+              {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsPDF}>📄 PDF</button>}
               {shirts.length > 0 && <button className="btn btn-sm btn-gold" onClick={exportShirtsExcel}>📊 Excel</button>}
-              <button className="btn btn-sm btn-primary" onClick={addShirtPerson}>+ Persona</button>
+              <button className="btn btn-sm btn-primary" onClick={addRow}>+ Riga</button>
             </div>
           </div>
 
           <div className="extra-summary">
-            <div className="extra-card highlight"><div className="lbl">Totale da ordinare</div><div className="val">{orderSummary.totalQty}</div></div>
-            <div className="extra-card"><div className="lbl">Già ritirate</div><div className="val">{orderSummary.collectedQty}</div></div>
-            <div className="extra-card"><div className="lbl">Da consegnare</div><div className="val">{orderSummary.pendingQty}</div></div>
+            <div className="extra-card highlight"><div className="lbl">Totale maglie</div><div className="val">{orderSummary.totMaglie}</div></div>
+            <div className="extra-card highlight"><div className="lbl">Totale canottiere</div><div className="val">{orderSummary.totCanottiere}</div></div>
+            <div className="extra-card"><div className="lbl">Ritiri</div><div className="val">{orderSummary.ritTot}<span style={{fontSize:13, color:"var(--ink-soft)"}}> tot</span> · {orderSummary.ritParz}<span style={{fontSize:13, color:"var(--ink-soft)"}}> parz</span></div></div>
           </div>
 
-          {orderSummary.rows.length > 0 && (
+          {orderSummary.sizeRows.length > 0 && (
             <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:16}}>
-              {orderSummary.rows.map(r => (
-                <span key={r.k} className="order-pill">{r.k} <b>{r.v}</b></span>
+              {orderSummary.sizeRows.map(r => (
+                <span key={r.size} className="order-pill">Taglia {r.size} · M <b>{r.maglie}</b> · C <b>{r.canottiere}</b></span>
               ))}
             </div>
           )}
 
           {shirts.length === 0 ? (
             <p style={{fontStyle:"italic", color:"var(--ink-soft)", textAlign:"center", padding:"16px"}}>
-              Nessun nominativo. Importa lo sheet “Gestione maglie” oppure aggiungi una persona.
+              Nessuna riga. Importa lo sheet “Gestione maglie” oppure aggiungi una riga.
             </p>
           ) : (
             <div className="extra-table-wrap">
               <table className="extra-table">
                 <thead>
                   <tr>
-                    <th style={{minWidth:160}}>Persona</th>
-                    <th>Capi (tipologia · taglia · q.tà · ritirata)</th>
+                    <th style={{minWidth:150}}>Nome</th>
+                    <th>Taglia</th>
+                    <th className="c">Q Maglie</th>
+                    <th className="c">Q Canottiere</th>
+                    <th style={{minWidth:120}}>Ritiro</th>
                     <th className="c"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {shirts.map(p => (
-                    <tr key={p.id}>
-                      <td><input type="text" value={p.name} onChange={e => updateShirtName(p.id, e.target.value)} placeholder="Nome" /></td>
+                    <tr key={p.id} className={p.ritiro === "totale" ? "insured-row" : (p.ritiro === "parziale" ? "partial-row" : "")}>
+                      <td><input type="text" value={p.name} onChange={e => updateRow(p.id, { name: e.target.value })} placeholder="Nome" /></td>
+                      <td><input className="size" type="text" value={p.size || ""} onChange={e => updateRow(p.id, { size: e.target.value.toUpperCase() })} placeholder="—" /></td>
+                      <td className="c"><input className="qty" type="number" min="0" value={p.qMaglie} onChange={e => updateRow(p.id, { qMaglie: Math.max(0, parseInt(e.target.value) || 0) })} /></td>
+                      <td className="c"><input className="qty" type="number" min="0" value={p.qCanottiere} onChange={e => updateRow(p.id, { qCanottiere: Math.max(0, parseInt(e.target.value) || 0) })} /></td>
                       <td>
-                        {(p.items || []).length === 0 && <span style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:12.5}}>Nessun capo</span>}
-                        {(p.items || []).map(it => (
-                          <div key={it.id} className="shirt-item-row">
-                            <select value={it.type} onChange={e => updateItem(p.id, it.id, { type: e.target.value })}>
-                              <option value="Maglia">Maglia</option>
-                              <option value="Canottiera">Canottiera</option>
-                            </select>
-                            <input className="size" type="text" value={it.size || ""} onChange={e => updateItem(p.id, it.id, { size: e.target.value.toUpperCase() })} placeholder="Taglia" />
-                            <span className="lbl-mini">q.tà</span>
-                            <input className="qty" type="number" min="1" value={it.qty} onChange={e => updateItem(p.id, it.id, { qty: Math.max(1, parseInt(e.target.value) || 1) })} />
-                            <label style={{display:"inline-flex", alignItems:"center", gap:5, fontSize:12.5}}>
-                              <input type="checkbox" checked={!!it.collected} onChange={e => updateItem(p.id, it.id, { collected: e.target.checked })} /> ritirata
-                            </label>
-                            <button className="row-del" onClick={() => removeItem(p.id, it.id)} title="Rimuovi capo">✕</button>
-                          </div>
-                        ))}
-                        <button className="btn btn-sm" style={{marginTop:6}} onClick={() => addItem(p.id)}>+ capo</button>
+                        <select value={p.ritiro || ""} onChange={e => updateRow(p.id, { ritiro: e.target.value })}>
+                          <option value="">— non ritirato</option>
+                          <option value="parziale">Parziale</option>
+                          <option value="totale">Totale</option>
+                        </select>
                       </td>
-                      <td className="c"><button className="row-del" onClick={() => removeShirtPerson(p.id)} title="Rimuovi persona">✕</button></td>
+                      <td className="c"><button className="row-del" onClick={() => removeRow(p.id)} title="Rimuovi riga">✕</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -5226,28 +5283,26 @@ function AssicurazioniMaglieView({ insurance, setInsurance, shirts, setShirts, s
             <div className="modal-head">
               <h2>Importa gestione maglie</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                Foglio “{shirtPreview.sheet}” · {shirtPreview.people.length} persone · {shirtPreview.people.reduce((a,p)=>a+p.items.length,0)} capi
+                Foglio “{shirtPreview.sheet}” · {shirtPreview.people.length} persone · {shirtPreview.people.reduce((a,p)=>a+(p.qMaglie||0),0)} maglie · {shirtPreview.people.reduce((a,p)=>a+(p.qCanottiere||0),0)} canottiere
               </div>
             </div>
             <div style={{maxHeight:340, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
               <table className="extra-table">
-                <thead><tr><th>Persona</th><th>Capi</th><th>Stato</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Taglia</th><th className="c">Q Maglie</th><th className="c">Q Canottiere</th></tr></thead>
                 <tbody>
-                  {shirtPreview.people.map((p, i) => {
-                    const exists = shirts.some(x => x.name.trim().toLowerCase() === p.name.toLowerCase());
-                    return (
-                      <tr key={i}>
-                        <td>{p.name}</td>
-                        <td style={{fontSize:12.5}}>{p.items.length ? p.items.map(it => it.type + " " + (it.size||"?") + " ×" + it.qty).join(", ") : "—"}</td>
-                        <td style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color: exists ? "var(--gold-deep)" : "var(--green-field)"}}>{exists ? "aggiunge" : "nuovo"}</td>
-                      </tr>
-                    );
-                  })}
+                  {shirtPreview.people.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p.name}</td>
+                      <td>{p.size || "—"}</td>
+                      <td className="c">{p.qMaglie || 0}</td>
+                      <td className="c">{p.qCanottiere || 0}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-            <p style={{fontSize:12.5, color:"var(--ink-soft)", marginTop:10}}>
-              Per chi è già presente, i capi importati vengono <b>aggiunti</b> a quelli esistenti (così puoi avere più item per persona).
+            <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:10}}>
+              ⚠ L'import <b>sostituisce</b> l'elenco maglie attuale con le righe del foglio.
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShirtPreview(null)}>Annulla</button>
