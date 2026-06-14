@@ -2118,6 +2118,108 @@ function GironiView({ teams, matches }) {
 function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
   const [filter, setFilter] = useState("ALL"); // ALL | gironi | quarti | semi | finali | "YYYY-MM-DD"
   const [editing, setEditing] = useState(null);
+  const calFileRef = useRef(null);
+  const [calPreview, setCalPreview] = useState(null);
+
+  const toISODate = (v) => {
+    if (v == null || v === "") return "";
+    if (v instanceof Date && !isNaN(v.getTime())) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0");
+    if (typeof v === "number" && isFinite(v)) { const d = new Date(Math.round((v - 25569) * 86400 * 1000)); if (!isNaN(d.getTime())) return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0"); }
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0");
+    m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/); if (m) { let y = m[3]; if (y.length === 2) y = "20" + y; return y + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"); }
+    return s;
+  };
+  const toTime = (v) => {
+    if (v == null || v === "") return "";
+    if (v instanceof Date && !isNaN(v.getTime())) return String(v.getHours()).padStart(2, "0") + ":" + String(v.getMinutes()).padStart(2, "0");
+    if (typeof v === "number" && isFinite(v) && v < 1) { const mins = Math.round(v * 24 * 60); return String(Math.floor(mins / 60)).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0"); }
+    return String(v).trim();
+  };
+  const normPhase = (v) => {
+    const x = (v == null ? "" : String(v)).trim().toLowerCase();
+    if (/quart/.test(x)) return "quarti";
+    if (/semi/.test(x)) return "semi";
+    if (/finalina|3.{0,3}4|terzo/.test(x)) return "finalina";
+    if (/under/.test(x)) return "finale_under";
+    if (/final/.test(x)) return "finale";
+    return "gironi";
+  };
+
+  const handleCalendarFile = (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array", cellDates: true });
+        const sn = wb.SheetNames.find(n => /calendar|partite|gironi/i.test(n)) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
+        const want = { data: /^data|giorno/i, time: /orario|ora/i, phase: /fase/i, girone: /girone/i, home: /casa/i, away: /trasferta|ospite/i, gh: /gol casa|casa gol|^gh$/i, ga: /gol trasferta|trasferta gol|^ga$/i, field: /campo/i };
+        let hIdx = -1, cols = {};
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || []; const c = {};
+          Object.entries(want).forEach(([k, re]) => { for (let j = 0; j < r.length; j++) { if (typeof r[j] === "string" && re.test(r[j].trim()) && c[k] == null) c[k] = j; } });
+          if (c.home != null && c.away != null) { hIdx = i; cols = c; break; }
+        }
+        if (hIdx < 0) { alert('Non ho trovato le colonne "Casa" e "Trasferta" nel foglio "' + sn + '".'); return; }
+        const byName = {}; teams.forEach(t => { byName[(t.name || "").trim().toLowerCase()] = t; });
+        const parsed = []; const unmatched = new Set();
+        for (let i = hIdx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const cell = (k) => cols[k] != null ? r[cols[k]] : null;
+          const homeName = cell("home") != null ? String(cell("home")).trim() : "";
+          const awayName = cell("away") != null ? String(cell("away")).trim() : "";
+          if (!homeName && !awayName) continue;
+          if (/^totale/i.test(homeName)) break;
+          const ht = byName[homeName.toLowerCase()]; const at = byName[awayName.toLowerCase()];
+          if (homeName && !ht) unmatched.add(homeName);
+          if (awayName && !at) unmatched.add(awayName);
+          const phase = normPhase(cell("phase"));
+          let girone = cell("girone") != null ? String(cell("girone")).trim().toUpperCase().replace(/[^A-D]/g, "") : "";
+          if (!girone && phase === "gironi") girone = (ht && ht.girone) || (at && at.girone) || "";
+          const ghv = cell("gh"), gav = cell("ga");
+          const gh = ghv != null && ghv !== "" && !isNaN(Number(ghv)) ? Number(ghv) : null;
+          const ga = gav != null && gav !== "" && !isNaN(Number(gav)) ? Number(gav) : null;
+          parsed.push({ date: toISODate(cell("data")), time: toTime(cell("time")), phase, girone, home: ht ? ht.id : null, away: at ? at.id : null, homeName, awayName, homeScore: gh, awayScore: ga, played: gh != null && ga != null, field: cell("field") != null ? String(cell("field")).trim() : "" });
+        }
+        if (!parsed.length) { alert("Nessuna partita trovata nel foglio."); return; }
+        setCalPreview({ rows: parsed, sheet: sn, unmatched: [...unmatched] });
+      } catch (err) { alert("Errore lettura file: " + err.message); }
+    };
+    reader.onerror = () => alert("Impossibile leggere il file");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyCalendarImport = () => {
+    if (!calPreview) return;
+    const newMatches = calPreview.rows.map(r => ({
+      id: uid(), date: r.date, time: r.time, phase: r.phase, girone: r.girone,
+      home: r.home, away: r.away, slotHome: "", slotAway: "",
+      homeScore: r.homeScore, awayScore: r.awayScore, played: r.played,
+      field: r.field || null, events: [],
+    }));
+    setMatches(newMatches);
+    setCalPreview(null);
+    showToast(newMatches.length + " partite importate");
+  };
+
+  const downloadTemplate = () => {
+    try {
+      const aoa = [
+        ["Data", "Orario", "Fase", "Girone", "Casa", "Trasferta", "Gol Casa", "Gol Trasferta", "Campo"],
+        ["22/06/2026", "20:00", "Gironi", "A", "Bronx", "Favregas", "", "", "Campo 1"],
+        ["22/06/2026", "21:00", "Gironi", "B", "Ammond", "Benedetti dal Palo", "", "", "Campo 1"],
+        ["24/06/2026", "20:00", "Gironi", "C", "Al Leon d'Oro", "Azul Club", "", "", "Campo 1"],
+        ["10/07/2026", "21:00", "Quarti", "", "1° Girone A", "2° Girone B", "", "", "Campo 1"],
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 9 }, { wch: 13 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Calendario");
+      XLSX.writeFile(wb, "TdP-Template-Calendario.xlsx");
+      showToast("Template scaricato");
+    } catch (e) { alert("Errore: " + e.message); }
+  };
 
   // Usa solo le partite reali salvate (generate dall'Admin)
   // matchesFromTemplate è ora un alias di matches per non rompere il resto del codice
@@ -2341,6 +2443,9 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
           <div className="subtitle">{playedCount} / {totalCount} partite giocate</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+          {canEdit && <input ref={calFileRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleCalendarFile} style={{display:"none"}} />}
+          {canEdit && <button className="btn btn-sm btn-gold" onClick={() => calFileRef.current && calFileRef.current.click()} title="Importa un calendario già pronto da Excel">📥 Importa calendario</button>}
+          {canEdit && <button className="btn btn-sm" onClick={downloadTemplate} title="Scarica il modello Excel da compilare">📋 Template</button>}
           {totalCount > 0 && <button className="btn btn-sm btn-gold" onClick={exportCalendarPDF} title="Esporta calendario in PDF">📄 PDF</button>}
           {totalCount > 0 && <button className="btn btn-sm btn-gold" onClick={exportCalendarExcel} title="Esporta calendario in Excel">📊 Excel</button>}
         </div>
@@ -2395,6 +2500,48 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
       })}
 
       {editing && <MatchEditor match={editing} teams={teams} allMatches={matchesFromTemplate} onSave={saveMatch} onCancel={()=>setEditing(null)} />}
+
+      {calPreview && (
+        <div className="modal-overlay" onClick={() => setCalPreview(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:680}}>
+            <div className="modal-head">
+              <h2>Importa calendario</h2>
+              <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
+                Foglio “{calPreview.sheet}” · {calPreview.rows.length} partite
+              </div>
+            </div>
+            {calPreview.unmatched.length > 0 && (
+              <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:4, marginBottom:10}}>
+                ⚠ Squadre non riconosciute (non presenti tra quelle inserite): <b>{calPreview.unmatched.join(", ")}</b>. Le partite verranno importate lo stesso, ma queste squadre non conteranno nelle classifiche finché i nomi non coincidono. Controlla che i nomi nel file siano identici a quelli in “Squadre”.
+              </p>
+            )}
+            <div style={{maxHeight:330, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
+              <table className="extra-table">
+                <thead><tr><th>Data</th><th>Ora</th><th>Fase</th><th>Casa</th><th>Trasferta</th><th className="c">Ris.</th></tr></thead>
+                <tbody>
+                  {calPreview.rows.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{whiteSpace:"nowrap"}}>{r.date ? fmtDateIT(r.date) : "—"}</td>
+                      <td>{r.time || "—"}</td>
+                      <td style={{textTransform:"capitalize"}}>{r.phase}{r.phase === "gironi" && r.girone ? " " + r.girone : ""}</td>
+                      <td style={{color: r.home ? "inherit" : "var(--terracotta-dark)"}}>{r.homeName || "—"}</td>
+                      <td style={{color: r.away ? "inherit" : "var(--terracotta-dark)"}}>{r.awayName || "—"}</td>
+                      <td className="c">{r.played ? (r.homeScore + "–" + r.awayScore) : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:10}}>
+              ⚠ L'import <b>sostituisce</b> tutte le partite attuali con quelle del file.
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setCalPreview(null)}>Annulla</button>
+              <button className="btn btn-gold" onClick={applyCalendarImport}>Importa {calPreview.rows.length} partite</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
