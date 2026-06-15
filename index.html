@@ -2226,8 +2226,10 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
   };
 
   const clearLib = () => {
-    if (!confirm("Svuotare tutti i dati delle liberatorie (data/luogo nascita, residenza, contatti compilati o importati)? I giocatori restano nelle squadre.")) return;
-    setLiberatorie({});
+    if (!confirm("Svuotare tutti i dati delle liberatorie? Tutte le celle (data/luogo nascita, residenza, via, n°, prov., telefono, e-mail) verranno azzerate. I giocatori restano nelle squadre.")) return;
+    const blank = {};
+    players.forEach(p => { blank[p.id] = { dataNascita: "", luogoNascita: "", residenza: "", prov: "", via: "", civico: "", telefono: "", email: "" }; });
+    setLiberatorie(blank);
     showToast("Dati liberatorie svuotati");
   };
 
@@ -2353,7 +2355,7 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
           <input ref={libFileRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleLibFile} style={{display:"none"}} />
           <button className="btn btn-sm btn-gold" onClick={() => libFileRef.current && libFileRef.current.click()} title="Importa il foglio 'Dati giocatori per liberatorie'">📥 Importa dati</button>
           {players.length > 0 && <button className="btn btn-sm btn-gold" onClick={() => generatePDF(players, false)} title="Genera un PDF con la liberatoria di tutti i giocatori">📄 PDF tutte ({players.length})</button>}
-          {Object.keys(lib).length > 0 && <button className="btn btn-sm btn-danger" onClick={clearLib} title="Cancella tutti i dati compilati/importati delle liberatorie">🗑 Svuota dati</button>}
+          {(players.length > 0 || Object.keys(lib).length > 0) && <button className="btn btn-sm btn-danger" onClick={clearLib} title="Azzera tutti i dati delle liberatorie">🗑 Svuota dati</button>}
         </div>
       </div>
 
