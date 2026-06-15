@@ -1017,37 +1017,54 @@ function parseTuttiIGiocatori(workbook, sheetName) {
 
   const teams = [];
   let current = null;
+  const norm = (v) => String(v == null ? "" : v).trim();
 
+  // Rilevamento dinamico dell'intestazione: cerco la riga con "GIOCATORE" e mappo le colonne per nome
+  let headerIdx = -1;
+  let COL = { name: 1, birth: 2, birthPlace: 3, address: 4, idCard: 5, fiscalCode: 6 }; // default storico (colonne B..G)
   for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const gi = r.findIndex(c => typeof c === "string" && /^\s*giocatore\s*$/i.test(c));
+    if (gi >= 0) {
+      headerIdx = i;
+      const find = (re) => { for (let j = 0; j < r.length; j++) { if (typeof r[j] === "string" && re.test(r[j].trim())) return j; } return -1; };
+      COL = {
+        name: gi,
+        birth: find(/data di nascita/i),
+        birthPlace: find(/luogo di nascita/i),
+        address: find(/indirizzo/i),
+        idCard: find(/carta\s*d.?\s*identit|n\.?\s*carta/i),
+        fiscalCode: find(/codice fiscale/i),
+      };
+      break;
+    }
+  }
+
+  const startIter = headerIdx >= 0 ? headerIdx + 1 : 0;
+  const useColor = hasColorInfo && COL.name === 1; // il colore è un segnale affidabile solo sulla colonna B
+
+  for (let i = startIter; i < rows.length; i++) {
     const row = rows[i] || [];
     const rowNum = startRow + i; // riga Excel reale (1-indexed)
-    const cB = row[1], cC = row[2], cD = row[3], cE = row[4], cF = row[5], cG = row[6];
+    const name = norm(row[COL.name]);
+    if (!name) continue;
+    if (/^giocatore$/i.test(name)) continue;
+    if (/^totale/i.test(name)) continue;
 
-    if (cB == null || cB === "") continue;
-    const sB = String(cB).trim();
-    if (!sB) continue;
-    if (/^GIOCATORE$/i.test(sB)) continue;
-    // NOTA: rimosso filtro "solo numeri" perché nomi-squadra come "2001" sono validi
-    // (es. squadra "anno di nascita"). Il colore arancione è il discriminante.
-
-    const hasBirth = cC != null && cC !== "" && parseDateToISO(cC) !== "";
+    const birthRaw = COL.birth >= 0 ? row[COL.birth] : null;
+    const hasBirth = birthRaw != null && birthRaw !== "" && parseDateToISO(birthRaw) !== "";
 
     // === Riconoscimento riga-squadra ===
-    let isTeamRow = false;
-    if (hasColorInfo) {
-      // Modalità COLORE: l'unico segnale è il colore arancione della cella B
+    let isTeamRow;
+    if (useColor) {
       isTeamRow = isTeamRowColor(rowNum) && !hasBirth;
     } else {
-      // Fallback (file senza stili): MAIUSCOLO e nessuna data di nascita
-      const isUppercase = sB === sB.toUpperCase() && sB.length > 1;
+      const isUppercase = name === name.toUpperCase() && name.length > 1;
       isTeamRow = !hasBirth && isUppercase;
     }
 
     if (isTeamRow) {
-      current = {
-        id: uid(), name: sB, captain: "", contact: "",
-        color: "#1a5d3a", girone: "", players: []
-      };
+      current = { id: uid(), name, captain: "", contact: "", color: "#1a5d3a", girone: "", players: [] };
       teams.push(current);
       continue;
     }
@@ -1055,12 +1072,12 @@ function parseTuttiIGiocatori(workbook, sheetName) {
     if (!current) continue;
     if (hasBirth) {
       current.players.push({
-        id: uid(), name: sB,
-        birthDate: parseDateToISO(cC),
-        birthPlace: cD ? String(cD).trim() : "",
-        address: cE ? String(cE).trim() : "",
-        idCard: cF ? String(cF).trim() : "",
-        fiscalCode: cG ? String(cG).trim().toUpperCase() : "",
+        id: uid(), name,
+        birthDate: parseDateToISO(birthRaw),
+        birthPlace: COL.birthPlace >= 0 ? norm(row[COL.birthPlace]) : "",
+        address: COL.address >= 0 ? norm(row[COL.address]) : "",
+        idCard: COL.idCard >= 0 ? norm(row[COL.idCard]) : "",
+        fiscalCode: COL.fiscalCode >= 0 ? norm(row[COL.fiscalCode]).toUpperCase() : "",
         isCaptain: false
       });
     }
@@ -1465,6 +1482,13 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
             <button className="btn btn-primary" onClick={() => setEditing({ id: null, name: "", captain: "", contact: "", girone: "", color: "#1a5d3a", players: [] })}>
               + Nuova squadra
             </button>
+            {teams.length > 0 && (
+              <button className="btn btn-danger" onClick={() => {
+                if (!confirm("Svuotare TUTTE le squadre e i relativi giocatori? L'operazione non è reversibile.")) return;
+                setTeams([]);
+                showToast("Tutte le squadre eliminate");
+              }} title="Elimina tutte le squadre e i giocatori">🗑 Svuota tutte</button>
+            )}
           </div>
         )}
       </div>
@@ -2125,6 +2149,8 @@ function GironiView({ teams, matches }) {
 
 function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
   const lib = liberatorie || {};
+  const libFileRef = useRef(null);
+  const [libPreview, setLibPreview] = useState(null);
   const players = useMemo(() => {
     const list = [];
     (teams || []).forEach(t => (t.players || []).forEach(p => { if ((p.name || "").trim()) list.push(Object.assign({}, p, { team: t.name })); }));
@@ -2143,6 +2169,88 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
   const getVal = (p, f) => { const r = lib[p.id] || {}; return r[f] !== undefined ? r[f] : baseVal(p, f); };
   const updateField = (pid, f, v) => setLiberatorie(Object.assign({}, lib, { [pid]: Object.assign({}, lib[pid] || {}, { [f]: v }) }));
   const mergedFor = (p) => ({ name: p.name || "", team: p.team || "", dataNascita: getVal(p, "dataNascita"), luogoNascita: getVal(p, "luogoNascita"), residenza: getVal(p, "residenza"), prov: getVal(p, "prov"), via: getVal(p, "via"), civico: getVal(p, "civico"), telefono: getVal(p, "telefono"), email: getVal(p, "email") });
+
+  // ===== Import foglio "Dati giocatori per liberatorie" =====
+  const libToISO = (v) => {
+    if (v instanceof Date && !isNaN(v.getTime())) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0");
+    const s = String(v == null ? "" : v).trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0");
+    m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/); if (m) { let y = m[3]; if (y.length === 2) y = "20" + y; return y + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"); }
+    return "";
+  };
+
+  const handleLibFile = (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array", cellDates: true });
+        const sn = wb.SheetNames.find(n => /liberator/i.test(n)) || wb.SheetNames.find(n => /giocator/i.test(n)) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
+        let hIdx = -1, C = {};
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const gi = r.findIndex(c => typeof c === "string" && /^\s*giocatore\s*$/i.test(c));
+          if (gi >= 0) {
+            const find = (re) => { for (let j = 0; j < r.length; j++) { if (typeof r[j] === "string" && re.test(r[j].trim())) return j; } return -1; };
+            C = { name: gi, dataNascita: find(/data di nascita/i), luogoNascita: find(/luogo di nascita/i), via: find(/via.*residenz/i), indirizzo: find(/indirizzo/i), civico: find(/civico/i), comune: find(/comune/i), prov: find(/^prov/i), telefono: find(/telefono/i), email: find(/e.?mail/i) };
+            hIdx = i; break;
+          }
+        }
+        if (hIdx < 0) { alert('Non ho trovato l\'intestazione "GIOCATORE" nel foglio "' + sn + '".'); return; }
+        const parsed = [];
+        for (let i = hIdx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const nm = C.name >= 0 && r[C.name] != null ? String(r[C.name]).trim() : "";
+          if (!nm) continue;
+          if (/^totale/i.test(nm)) continue;
+          const iso = C.dataNascita >= 0 ? libToISO(r[C.dataNascita]) : "";
+          if (!iso) continue; // salta le righe-squadra (senza data di nascita)
+          const get = (j) => j >= 0 && r[j] != null ? String(r[j]).trim() : "";
+          parsed.push({
+            name: nm, dataNascita: iso, luogoNascita: get(C.luogoNascita),
+            residenza: get(C.comune), prov: get(C.prov).toUpperCase(),
+            via: get(C.via) || get(C.indirizzo), civico: get(C.civico),
+            telefono: get(C.telefono), email: get(C.email),
+          });
+        }
+        if (!parsed.length) { alert("Nessun giocatore trovato nel foglio."); return; }
+        const idx = {}; players.forEach(p => { idx[(p.name || "").trim().toLowerCase()] = p; });
+        const matched = []; const unmatched = [];
+        parsed.forEach(row => { const p = idx[row.name.toLowerCase()]; if (p) matched.push(Object.assign({ playerId: p.id }, row)); else unmatched.push(row.name); });
+        setLibPreview({ sheet: sn, matched, unmatched, total: parsed.length });
+      } catch (err) { alert("Errore lettura file: " + err.message); }
+    };
+    reader.onerror = () => alert("Impossibile leggere il file");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const clearLib = () => {
+    if (!confirm("Svuotare tutti i dati delle liberatorie (data/luogo nascita, residenza, contatti compilati o importati)? I giocatori restano nelle squadre.")) return;
+    setLiberatorie({});
+    showToast("Dati liberatorie svuotati");
+  };
+
+  const applyLibImport = () => {
+    if (!libPreview) return;
+    const next = Object.assign({}, lib);
+    libPreview.matched.forEach(m => {
+      const cur = next[m.playerId] || {};
+      next[m.playerId] = Object.assign({}, cur, {
+        dataNascita: m.dataNascita || cur.dataNascita,
+        luogoNascita: m.luogoNascita || cur.luogoNascita,
+        residenza: m.residenza || cur.residenza,
+        prov: m.prov || cur.prov,
+        via: m.via || cur.via,
+        civico: m.civico || cur.civico,
+        telefono: m.telefono || cur.telefono,
+        email: m.email || cur.email,
+      });
+    });
+    setLiberatorie(next);
+    setLibPreview(null);
+    showToast(libPreview.matched.length + " giocatori aggiornati");
+  };
 
   const buildOne = (doc, d) => {
     const pageW = doc.internal.pageSize.getWidth();
@@ -2241,7 +2349,12 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
           <h1>Liberatorie</h1>
           <div className="subtitle">{players.length} giocatori · PDF precompilato con i dati di ciascuno</div>
         </div>
-        {players.length > 0 && <button className="btn btn-sm btn-gold" onClick={() => generatePDF(players, false)} title="Genera un PDF con la liberatoria di tutti i giocatori">📄 PDF tutte ({players.length})</button>}
+        <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+          <input ref={libFileRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleLibFile} style={{display:"none"}} />
+          <button className="btn btn-sm btn-gold" onClick={() => libFileRef.current && libFileRef.current.click()} title="Importa il foglio 'Dati giocatori per liberatorie'">📥 Importa dati</button>
+          {players.length > 0 && <button className="btn btn-sm btn-gold" onClick={() => generatePDF(players, false)} title="Genera un PDF con la liberatoria di tutti i giocatori">📄 PDF tutte ({players.length})</button>}
+          {Object.keys(lib).length > 0 && <button className="btn btn-sm btn-danger" onClick={clearLib} title="Cancella tutti i dati compilati/importati delle liberatorie">🗑 Svuota dati</button>}
+        </div>
       </div>
 
       {players.length === 0 ? (
@@ -2298,6 +2411,46 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
             </div>
           ))}
         </>
+      )}
+
+      {libPreview && (
+        <div className="modal-overlay" onClick={() => setLibPreview(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:600}}>
+            <div className="modal-head">
+              <h2>Importa dati liberatorie</h2>
+              <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
+                Foglio “{libPreview.sheet}” · {libPreview.total} giocatori nel file · {libPreview.matched.length} abbinati
+              </div>
+            </div>
+            {libPreview.unmatched.length > 0 && (
+              <p style={{fontSize:12.5, color:"var(--terracotta-dark)", marginTop:4, marginBottom:10}}>
+                ⚠ Non abbinati (nome diverso da quelli in “Squadre”, saltati): <b>{libPreview.unmatched.join(", ")}</b>.
+              </p>
+            )}
+            <div style={{maxHeight:320, overflowY:"auto", border:"1.5px solid var(--ink)", borderRadius:3}}>
+              <table className="extra-table">
+                <thead><tr><th>Giocatore</th><th>Residenza</th><th>Prov.</th><th>Telefono</th></tr></thead>
+                <tbody>
+                  {libPreview.matched.map((m, i) => (
+                    <tr key={i}>
+                      <td>{m.name}</td>
+                      <td>{m.residenza || "—"}</td>
+                      <td>{m.prov || "—"}</td>
+                      <td>{m.telefono || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p style={{fontSize:12.5, color:"var(--ink-soft)", marginTop:10}}>
+              I dati importati riempiono i campi mancanti dei giocatori abbinati (data/luogo nascita, residenza, prov., via, n°, telefono, e-mail). I valori vuoti nel file non sovrascrivono quelli già presenti.
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setLibPreview(null)}>Annulla</button>
+              <button className="btn btn-gold" onClick={applyLibImport}>Aggiorna {libPreview.matched.length} giocatori</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
