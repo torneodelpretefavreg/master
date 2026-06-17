@@ -238,6 +238,16 @@
   .mapping-table th.m-area, .mapping-table td.m-area { min-width: 130px; position: sticky; right: 0; background: var(--cream-soft); border-left: 2px solid var(--ink); z-index: 3; }
   .mapping-table thead th.m-area { background: var(--ink); z-index: 5; }
   .mapping-table td.m-area select { font-size: 13px; padding: 6px 8px; min-width: 110px; }
+  .mapping-table td.m-cell.clickable { cursor: pointer; user-select: none; transition: outline 0.05s; }
+  .mapping-table td.m-cell.clickable:hover { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .mapping-table td.m-cell.no.clickable:hover { color: var(--ink-soft); }
+  .mapping-table td.m-cell.no.clickable:hover::after { content: "+"; opacity: 0.45; }
+  .mapping-table th.m-date.clickable { cursor: pointer; }
+  .mapping-table th.m-date.clickable:hover { color: var(--cream); }
+  .m-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .m-row-actions { display: inline-flex; gap: 3px; flex-shrink: 0; }
+  .m-row-actions button { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 5px; border: 1px solid var(--ink); background: var(--cream); border-radius: 4px; cursor: pointer; color: var(--ink-soft); line-height: 1.2; }
+  .m-row-actions button:hover { background: var(--gold); color: var(--ink); }
 
   /* === SOTTO-TAB TURNI / ASSICURAZIONI-MAGLIE === */
   .shift-subtabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -255,6 +265,14 @@
   .mansioni-people .mp-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; }
   /* Mansioni: tabella per area con chip persone */
   .mansioni-table td { vertical-align: middle; }
+  .mansioni-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 2px 16px; }
+  .ms-pill { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--ink); background: var(--cream-soft); color: var(--ink-soft); }
+  .ms-pill b { font-size: 14px; color: var(--ink); margin-left: 2px; }
+  .ms-pill.ms-assigned { background: rgba(13,40,24,0.08); border-color: var(--evergreen, #0d2818); color: var(--evergreen, #0d2818); }
+  .ms-pill.ms-assigned b { color: var(--evergreen, #0d2818); }
+  .ms-pill.ms-remaining { background: rgba(193,18,31,0.08); border-color: var(--terracotta-dark, #c1121f); color: var(--terracotta-dark, #c1121f); }
+  .ms-pill.ms-remaining b { color: var(--terracotta-dark, #c1121f); }
+  .ms-pill.ms-done { background: rgba(13,40,24,0.12); border-color: var(--evergreen, #0d2818); color: var(--evergreen, #0d2818); }
   .date-filter { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 12px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
   .date-chip { flex: 0 0 auto; font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 0.04em; padding: 8px 14px; background: var(--cream-soft); border: 1.5px solid var(--ink); border-radius: 20px; cursor: pointer; color: var(--ink-soft); white-space: nowrap; }
   .date-chip:hover { color: var(--ink); }
@@ -4514,7 +4532,34 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     setShifts(newShifts);
   };
 
-  // Export matrice turni (serate × aree con i nomi)
+  // Mappatura presenze IN-APP: attiva/disattiva la disponibilità di una persona per una serata
+  const toggleAvailability = (id, iso) => {
+    setStaff(staff.map(s => {
+      if (s.id !== id) return s;
+      const av = Object.assign({}, s.availability || {});
+      if (av[iso]) delete av[iso]; else av[iso] = true;
+      return Object.assign({}, s, { availability: av });
+    }));
+  };
+  // Tutta la riga: presente in tutte le serate (value=true) o azzera (value=false)
+  const setRowAvailability = (id, value) => {
+    setStaff(staff.map(s => {
+      if (s.id !== id) return s;
+      if (!value) return Object.assign({}, s, { availability: {} });
+      const av = {};
+      STAFF_DATES.forEach(d => { av[d.iso] = true; });
+      return Object.assign({}, s, { availability: av });
+    }));
+  };
+  // Tutta la colonna: se tutti già presenti quella sera li azzero, altrimenti li attivo tutti
+  const toggleDateForAll = (iso) => {
+    const allOn = staff.length > 0 && staff.every(s => isAvailable(s, iso));
+    setStaff(staff.map(s => {
+      const av = Object.assign({}, s.availability || {});
+      if (allOn) delete av[iso]; else av[iso] = true;
+      return Object.assign({}, s, { availability: av });
+    }));
+  };
   const exportShiftsExcel = () => {
     try {
       const aoa = [["Serata", ...positions.map(p => p.name)]];
@@ -4864,7 +4909,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             <button className="btn btn-sm btn-gold" onClick={populateFromMapping} title="Assegna ogni persona alla sua area in tutte le serate disponibili">⚡ Popola turni dalla mappatura</button>
           </div>
           <p style={{fontSize:13, color:"var(--ink-soft)", marginBottom:12, fontStyle:"italic"}}>
-            ✓ = serata in cui la persona è disponibile (dal sondaggio). Scegli l'<b>Area</b> in cui collocarla nell'ultima colonna; le aree si gestiscono nel pannello “Posizioni” qui sopra. Poi premi “Popola turni” per riempire la matrice in basso (resta modificabile a mano).
+            <b>Clicca le celle</b> per impostare le presenze direttamente qui (non serve l'Excel): ✓ = serata disponibile. Clicca l'<b>intestazione di una data</b> per attivarla/azzerarla per tutti, o usa <b>✓ tutte / ✕</b> accanto al nome. Scegli poi l'<b>Area</b> nell'ultima colonna e premi “Popola turni” per riempire la matrice in basso (resta modificabile a mano). L'import del sondaggio resta disponibile come scorciatoia.
           </p>
           <div className="mapping-wrap">
             <table className="mapping-table">
@@ -4873,7 +4918,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                   <th className="m-name">Persona</th>
                   <th className="m-tot">Tot</th>
                   {STAFF_DATES.map(d => (
-                    <th key={d.iso} className="m-date" title={d.label}>{d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}</th>
+                    <th key={d.iso} className="m-date clickable" title={"Attiva/azzera per tutti · " + d.label} onClick={() => toggleDateForAll(d.iso)}>{d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}</th>
                   ))}
                   <th className="m-area">Area</th>
                 </tr>
@@ -4883,11 +4928,22 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                   const cnt = STAFF_DATES.filter(d => isAvailable(s, d.iso)).length;
                   return (
                     <tr key={s.id}>
-                      <td className="m-name">{s.name}</td>
+                      <td className="m-name">
+                        <div className="m-name-row">
+                          <span>{s.name}</span>
+                          <span className="m-row-actions">
+                            <button onClick={() => setRowAvailability(s.id, true)} title="Presente in tutte le serate">✓ tutte</button>
+                            <button onClick={() => setRowAvailability(s.id, false)} title="Azzera le presenze">✕</button>
+                          </span>
+                        </div>
+                      </td>
                       <td className="m-tot"><span className={"m-badge " + (cnt === 0 ? "zero" : "")}>{cnt}</span></td>
-                      {STAFF_DATES.map(d => (
-                        <td key={d.iso} className={"m-cell " + (isAvailable(s, d.iso) ? "yes" : "no")} title={d.label}>{isAvailable(s, d.iso) ? "✓" : ""}</td>
-                      ))}
+                      {STAFF_DATES.map(d => {
+                        const yes = isAvailable(s, d.iso);
+                        return (
+                          <td key={d.iso} className={"m-cell clickable " + (yes ? "yes" : "no")} title={(yes ? "Presente" : "Assente") + " · " + d.label + " — clicca per cambiare"} onClick={() => toggleAvailability(s.id, d.iso)}>{yes ? "✓" : ""}</td>
+                        );
+                      })}
                       <td className="m-area">
                         <select value={s.preferredPosition || ""} onChange={e => setStaffArea(s.id, e.target.value)}>
                           <option value="">—</option>
@@ -5189,6 +5245,24 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
     const r = rowsOf(pid).find(x => x.id === rid); if (!r) return;
     updateRow(pid, rid, { peopleByDate: Object.assign({}, r.peopleByDate, { [selDate]: peopleOnDate(r, selDate).filter(x => x !== sid) }) });
   };
+
+  // Persone già assegnate a una QUALSIASI mansione nella data selezionata (per evitare doppioni)
+  const assignedIdsOnDate = useMemo(() => {
+    const s = new Set();
+    positions.forEach(p => (((mansioni && mansioni[p.id]) || [])).forEach(r => {
+      (((r.peopleByDate && r.peopleByDate[selDate]) || [])).forEach(id => s.add(id));
+    }));
+    return s;
+  }, [mansioni, positions, selDate]);
+
+  // Riepilogo della giornata: persone in turno (distinte) vs quante senza mansione
+  const dateSummary = useMemo(() => {
+    const pool = new Set();
+    positions.forEach(p => (poolByArea[p.id] || []).forEach(person => pool.add(person.id)));
+    let assigned = 0;
+    pool.forEach(id => { if (assignedIdsOnDate.has(id)) assigned++; });
+    return { tot: pool.size, assigned, remaining: pool.size - assigned };
+  }, [poolByArea, positions, assignedIdsOnDate]);
   const resetDefaults = () => {
     if (!confirm("Ripristino le mansioni predefinite per tutte le aree? Le assegnazioni di persone alle mansioni (per tutte le date) andranno perse.")) return;
     const seed = {};
@@ -5281,6 +5355,19 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
           ))}
         </div>
 
+        {/* RIEPILOGO GIORNATA */}
+        <div className="mansioni-summary">
+          {dateSummary.remaining === 0 && dateSummary.tot > 0 ? (
+            <span className="ms-pill ms-done">✓ Tutti assegnati</span>
+          ) : (
+            <>
+              <span className="ms-pill ms-assigned">Assegnati<b>{dateSummary.assigned}</b></span>
+              <span className="ms-pill ms-remaining">Da assegnare<b>{dateSummary.remaining}</b></span>
+            </>
+          )}
+          <span className="ms-pill">In turno questa sera<b>{dateSummary.tot}</b></span>
+        </div>
+
         {!hasAnyPeople && (
           <p style={{fontSize:13, color:"var(--terracotta-dark)", marginBottom:16, fontStyle:"italic"}}>
             In questa serata non c'è nessuno assegnato nei turni: i menù “aggiungi persona” saranno vuoti. Assegna le persone alle aree nella tabella turni per questa data.
@@ -5289,11 +5376,13 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
 
         {positions.map(p => {
           const available = poolByArea[p.id] || [];
+          const areaAssigned = available.filter(s => assignedIdsOnDate.has(s.id)).length;
+          const areaRemaining = available.length - areaAssigned;
           const rows = rowsOf(p.id);
           return (
             <div className="shifts-panel" key={p.id}>
               <div className="shifts-panel-head" style={{borderLeft: "6px solid " + p.color, paddingLeft: 12}}>
-                <h3>{p.name} <span style={{color:"var(--ink-soft)", fontFamily:"'JetBrains Mono', monospace", fontSize:12, fontWeight:400}}>· {available.length} in turno questa sera</span></h3>
+                <h3>{p.name} <span style={{color:"var(--ink-soft)", fontFamily:"'JetBrains Mono', monospace", fontSize:12, fontWeight:400}}>· {available.length} in turno{available.length > 0 ? " · " + areaRemaining + " senza mansione" : ""}</span></h3>
                 <button className="btn btn-sm btn-primary" onClick={() => addRow(p.id)}>+ Mansione</button>
               </div>
               {rows.length === 0 ? (
@@ -5314,7 +5403,7 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
                         const dayPeople = peopleOnDate(r, selDate);
                         const assigned = dayPeople.map(sid => staffById[sid]).filter(Boolean);
                         const full = assigned.length >= (Number(r.qty) || 0);
-                        const options = available.filter(s => !dayPeople.includes(s.id));
+                        const options = available.filter(s => !assignedIdsOnDate.has(s.id));
                         return (
                           <tr key={r.id}>
                             <td><input type="text" value={r.name} onChange={e => updateRow(p.id, r.id, { name: e.target.value })} placeholder="Nome mansione" /></td>
@@ -5330,7 +5419,7 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
                                   </span>
                                 ))}
                                 <select value="" onChange={e => { addPersonToRow(p.id, r.id, e.target.value); e.target.value = ""; }} className={"add-person-select " + (full ? "full" : "")}>
-                                  <option value="">{assigned.length}/{r.qty || 0} · + aggiungi…</option>
+                                  <option value="">{assigned.length}/{r.qty || 0}{options.length === 0 ? " · nessuno libero" : " · + aggiungi…"}</option>
                                   {options.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                               </div>
