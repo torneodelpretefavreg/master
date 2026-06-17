@@ -248,6 +248,11 @@
   .m-row-actions { display: inline-flex; gap: 3px; flex-shrink: 0; }
   .m-row-actions button { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 5px; border: 1px solid var(--ink); background: var(--cream); border-radius: 4px; cursor: pointer; color: var(--ink-soft); line-height: 1.2; }
   .m-row-actions button:hover { background: var(--gold); color: var(--ink); }
+  .mapping-table tfoot th { background: var(--green-deep); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 0.04em; padding: 8px 4px; position: sticky; bottom: 0; z-index: 4; border-top: 2px solid var(--ink); text-align: center; }
+  .mapping-table tfoot th.m-name { text-align: left; background: var(--ink); z-index: 5; }
+  .mapping-table tfoot th.m-area { background: var(--ink); }
+  .mapping-table tfoot th.zero { color: var(--terracotta); opacity: 0.75; }
+  .mapping-table tfoot th .m-badge { background: var(--gold); color: var(--ink); }
 
   /* === SOTTO-TAB TURNI / ASSICURAZIONI-MAGLIE === */
   .shift-subtabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -4629,6 +4634,8 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       const availDates = STAFF_DATES.filter(d => isAvailable(s, d.iso));
       if (availDates.length === 0) { skippedNoAvail.push(s.name); return; }
       availDates.forEach(d => {
+        // se è già in un'altra area quella serata, non la duplico
+        if (positions.some(p => p.id !== s.preferredPosition && getAssigned(d.iso, p.id).includes(s.id))) return;
         const key = shiftKey(d.iso, s.preferredPosition);
         const v = newShifts[key];
         const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
@@ -4662,6 +4669,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
 
   const addAssignment = (iso, posId, staffId) => {
     if (!staffId) return;
+    // Una persona non può essere in due aree diverse nella stessa serata
+    const otherArea = positions.find(p => p.id !== posId && getAssigned(iso, p.id).includes(staffId));
+    if (otherArea) {
+      const person = staffById[staffId];
+      alert((person ? person.name : "Questa persona") + " è già nell'area “" + otherArea.name + "” per questa serata.\nRimuovila da lì prima di spostarla in un'altra area.");
+      return;
+    }
     const key = shiftKey(iso, posId);
     const current = getAssigned(iso, posId);
     if (current.includes(staffId)) return; // già presente
@@ -4776,6 +4790,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   const pickerAvailable = picker ? staff.filter(s => !pickerCurrent.includes(s.id)) : [];
   // Ordino i disponibili mettendo prima chi ha quella posizione come preferita
   const pickerSorted = picker ? pickerAvailable.slice().sort((a, b) => {
+    const aBlock = positions.some(p => p.id !== picker.posId && getAssigned(picker.iso, p.id).includes(a.id)) ? 1 : 0;
+    const bBlock = positions.some(p => p.id !== picker.posId && getAssigned(picker.iso, p.id).includes(b.id)) ? 1 : 0;
+    if (aBlock !== bBlock) return aBlock - bBlock;
     const aAv = isAvailable(a, picker.iso) ? 0 : 1;
     const bAv = isAvailable(b, picker.iso) ? 0 : 1;
     if (aAv !== bAv) return aAv - bAv;
@@ -4954,6 +4971,17 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr>
+                  <th className="m-name">Persone per giorno</th>
+                  <th className="m-tot"><span className="m-badge">{staff.reduce((a, s) => a + STAFF_DATES.filter(d => isAvailable(s, d.iso)).length, 0)}</span></th>
+                  {STAFF_DATES.map(d => {
+                    const c = staff.filter(s => isAvailable(s, d.iso)).length;
+                    return <th key={d.iso} className={c === 0 ? "zero" : ""} title={c + " disponibili · " + d.label}>{c}</th>;
+                  })}
+                  <th className="m-area"></th>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -5073,28 +5101,38 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               <div style={{display:"flex", flexDirection:"column", gap:6, maxHeight:400, overflowY:"auto"}}>
                 {pickerSorted.map(s => {
                   const isPref = s.preferredPosition === picker.posId;
+                  const otherArea = positions.find(p => p.id !== picker.posId && getAssigned(picker.iso, p.id).includes(s.id));
+                  const blocked = !!otherArea;
                   return (
                     <button
                       key={s.id}
                       className="btn"
+                      disabled={blocked}
                       style={{
                         textAlign:"left",
                         justifyContent:"space-between",
                         display:"flex",
                         alignItems:"center",
                         padding:"10px 14px",
-                        background: isPref ? "rgba(232,185,72,0.15)" : "var(--paper)",
-                        borderColor: isPref ? "var(--gold-deep)" : "var(--ink)",
+                        background: blocked ? "rgba(22,26,24,0.06)" : (isPref ? "rgba(232,185,72,0.15)" : "var(--paper)"),
+                        borderColor: blocked ? "rgba(22,26,24,0.2)" : (isPref ? "var(--gold-deep)" : "var(--ink)"),
+                        opacity: blocked ? 0.6 : 1,
+                        cursor: blocked ? "not-allowed" : "pointer",
                       }}
-                      onClick={() => { addAssignment(picker.iso, picker.posId, s.id); setPicker(null); }}
+                      onClick={() => { if (blocked) return; addAssignment(picker.iso, picker.posId, s.id); setPicker(null); }}
+                      title={blocked ? "Già assegnata a " + otherArea.name + " questa serata" : ""}
                     >
                       <span style={{fontFamily:"'Fraunces', serif", fontWeight:600, fontSize:15, textTransform:"none", letterSpacing:0}}>
                         {s.name}
-                        {isPref && <span style={{marginLeft:8, fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"var(--gold-deep)", letterSpacing:"0.1em"}}>★ DESIDERATA</span>}
+                        {isPref && !blocked && <span style={{marginLeft:8, fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"var(--gold-deep)", letterSpacing:"0.1em"}}>★ DESIDERATA</span>}
                       </span>
                       <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, color:"var(--ink-soft)"}}>
-                        {!isAvailable(s, picker.iso) && <span style={{marginRight:8, color:"var(--terracotta-dark)", letterSpacing:"0.08em"}}>NON DISP.</span>}
-                        {staffStats[s.id] || 0} turni
+                        {blocked
+                          ? <span style={{color:"var(--terracotta-dark)", letterSpacing:"0.06em"}}>GIÀ IN {otherArea.name.toUpperCase()}</span>
+                          : <>
+                              {!isAvailable(s, picker.iso) && <span style={{marginRight:8, color:"var(--terracotta-dark)", letterSpacing:"0.08em"}}>NON DISP.</span>}
+                              {staffStats[s.id] || 0} turni
+                            </>}
                       </span>
                     </button>
                   );
