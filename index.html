@@ -222,6 +222,33 @@
   .shifts-matrix tr.totals-row td.total-cell.grand-total { background: var(--gold); color: var(--ink); font-size: 32px; border-left: 2px solid var(--ink); }
   .shifts-matrix tr.totals-row td.totals-label { background: var(--ink); color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.08em; text-align: left; padding-left: 14px; }
 
+  /* === TURNI — VISTA MOBILE A SCHEDE PER SERATA === */
+  .shifts-cards { display: none; flex-direction: column; gap: 8px; }
+  .shifts-cards-toggleall { width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px; margin-bottom: 4px; border: 1.5px solid var(--ink); background: var(--cream-soft); color: var(--ink-soft); border-radius: 5px; cursor: pointer; }
+  .shifts-cards-toggleall:active { background: var(--ink); color: var(--cream); }
+  .shift-day-card { border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; background: var(--paper); }
+  .shift-day-card.open { box-shadow: 3px 3px 0 var(--ink); }
+  .shift-day-head { display: grid; grid-template-columns: 20px 1fr auto auto; align-items: center; gap: 10px; padding: 13px 14px; cursor: pointer; user-select: none; background: var(--green-deep); color: var(--cream); }
+  .shift-day-head .sdc-caret { color: var(--gold); font-size: 13px; text-align: center; }
+  .shift-day-head .sdc-date { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.04em; line-height: 1; }
+  .shift-day-head .sdc-phase { font-family: 'Bebas Neue', sans-serif; font-size: 11px; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 3px; background: var(--gold); color: var(--ink); }
+  .shift-day-head .sdc-phase.finali { background: var(--terracotta); color: var(--cream); }
+  .shift-day-head .sdc-tot { font-family: 'Bebas Neue', sans-serif; font-size: 19px; color: var(--gold); line-height: 1; min-width: 24px; text-align: right; }
+  .shift-day-head .sdc-tot.zero { color: var(--terracotta); opacity: 0.8; }
+  .shift-day-body { padding: 6px 10px 10px; }
+  .shift-pos-row { padding: 9px 0; border-bottom: 1px dashed rgba(22,26,24,0.18); }
+  .shift-pos-row:last-child { border-bottom: none; }
+  .shift-pos-name { display: inline-block; font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 0.06em; padding: 3px 9px; border-radius: 3px; color: var(--cream); margin-bottom: 7px; }
+  .shift-pos-people { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .shift-pos-people .assigned-pill { font-size: 13px; padding: 6px 10px; }
+  .shift-pos-people .assigned-pill button { font-size: 12px; padding: 2px 7px; }
+  .shift-pos-people .assign-add-btn { min-height: 32px; padding: 5px 14px; font-size: 18px; }
+
+  @media (max-width: 720px) {
+    .shifts-matrix-wrap { display: none; }
+    .shifts-cards { display: flex; }
+  }
+
   /* === MAPPATURA PRESENZE E AREE (da sondaggio) === */
   .mapping-wrap { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 4px; box-shadow: 3px 3px 0 var(--ink); background: var(--paper); }
   .mapping-table { width: 100%; border-collapse: collapse; }
@@ -4747,6 +4774,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
   const [picker, setPicker] = useState(null);
   // Editor persona staff (per modifica/eliminazione): persona | null
   const [editingStaff, setEditingStaff] = useState(null);
+  // Serate aperte nella vista mobile a schede (di default tutte chiuse)
+  const [openShiftDays, setOpenShiftDays] = useState(() => new Set());
+  const toggleShiftDay = (iso) => setOpenShiftDays(prev => {
+    const next = new Set(prev);
+    if (next.has(iso)) next.delete(iso); else next.add(iso);
+    return next;
+  });
 
   // Import sondaggio presenze
   const surveyInputRef = useRef(null);
@@ -5471,6 +5505,68 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               </tr>
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* MATRICE TURNI — VISTA MOBILE A SCHEDE PER SERATA */}
+      {staff.length > 0 && (
+        <div className="shifts-cards">
+          <button
+            className="shifts-cards-toggleall"
+            onClick={() => {
+              const allOpen = STAFF_DATES.every(d => openShiftDays.has(d.iso));
+              setOpenShiftDays(allOpen ? new Set() : new Set(STAFF_DATES.map(d => d.iso)));
+            }}
+          >
+            {STAFF_DATES.every(d => openShiftDays.has(d.iso)) ? "▴ Comprimi tutte le serate" : "▾ Espandi tutte le serate"}
+          </button>
+          {STAFF_DATES.map(d => {
+            const open = openShiftDays.has(d.iso);
+            const rowTotal = positions.reduce((acc, p) => acc + getAssigned(d.iso, p.id).length, 0);
+            return (
+              <div key={d.iso} className={"shift-day-card " + (open ? "open" : "")}>
+                <div className="shift-day-head" onClick={() => toggleShiftDay(d.iso)}>
+                  <span className="sdc-caret">{open ? "▾" : "▸"}</span>
+                  <span className="sdc-date">{d.label}</span>
+                  <span className={"sdc-phase " + (d.phase === "Finali" ? "finali" : "")}>{d.phase}</span>
+                  <span className={"sdc-tot " + (rowTotal === 0 ? "zero" : "")}>{rowTotal}</span>
+                </div>
+                {open && (
+                  <div className="shift-day-body">
+                    {positions.length === 0 ? (
+                      <p style={{fontStyle:"italic", color:"var(--ink-soft)", padding:"8px 2px", fontSize:13}}>
+                        Nessuna posizione definita. Aggiungile nel pannello “Posizioni”.
+                      </p>
+                    ) : positions.map(p => {
+                      const assigned = getAssigned(d.iso, p.id);
+                      return (
+                        <div key={p.id} className="shift-pos-row">
+                          <span className="shift-pos-name" style={{background: p.color}}>{p.name}</span>
+                          <div className="shift-pos-people">
+                            {assigned.map(sid => {
+                              const person = staffById[sid];
+                              if (!person) return null;
+                              return (
+                                <span key={sid} className="assigned-pill">
+                                  {person.name}
+                                  <button onClick={() => removeAssignment(d.iso, p.id, sid)} title="Rimuovi">✕</button>
+                                </span>
+                              );
+                            })}
+                            <button
+                              className="assign-add-btn"
+                              onClick={() => setPicker({ iso: d.iso, posId: p.id })}
+                              title="Aggiungi persona"
+                            >+</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
