@@ -435,6 +435,22 @@
   .top-product-row .revenue { font-family: 'Bebas Neue', sans-serif; font-size: 20px; min-width: 70px; text-align: right; color: var(--ink); }
 
   .receipts-list { padding: 0; max-height: 480px; overflow-y: auto; }
+
+  /* === SCONTRINI RAGGRUPPATI PER FASCIA ORARIA === */
+  .hour-groups { padding: 10px; }
+  .hour-toggle-all { width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px; margin-bottom: 10px; border: 1.5px solid var(--ink); background: var(--cream-soft); color: var(--ink-soft); border-radius: 4px; cursor: pointer; }
+  .hour-toggle-all:hover { background: var(--ink); color: var(--cream); }
+  .hour-group { border: 1.5px solid var(--ink); border-radius: 5px; margin-bottom: 8px; overflow: hidden; background: var(--paper); }
+  .hour-group.open { box-shadow: 2px 2px 0 var(--ink); }
+  .hour-group-head { display: grid; grid-template-columns: 22px 1fr auto auto; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; background: var(--green-deep); color: var(--cream); }
+  .hour-group-head:hover { background: var(--green-field); }
+  .hour-group-head .hg-caret { font-size: 14px; color: var(--gold); text-align: center; }
+  .hour-group-head .hg-label { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.04em; line-height: 1; }
+  .hour-group-head .hg-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--cream-soft); opacity: 0.85; }
+  .hour-group-head .hg-count::after { content: ' scontr.'; opacity: 0.6; }
+  .hour-group-head .hg-total { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold); line-height: 1; }
+  .hour-group .receipts-list { max-height: none; overflow: visible; border-top: 1px solid rgba(22,26,24,0.15); }
+  .hour-group .receipt-row:last-child { border-bottom: none; }
   .receipt-row { padding: 14px 20px; border-bottom: 1px solid rgba(22,26,24,0.1); cursor: pointer; transition: background 0.15s; }
   .receipt-row:hover { background: var(--cream-soft); }
   .receipt-row.expanded { background: var(--cream-soft); }
@@ -4074,6 +4090,7 @@ function CassaView({ db }) {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState("today"); // "today" | "ALL" | "YYYY-MM-DD"
   const [expandedReceipt, setExpandedReceipt] = useState(null);
+  const [openHours, setOpenHours] = useState(() => new Set());
 
   // Carica gli ordini da Firebase /torneo/orders (path di CassaPro)
   useEffect(() => {
@@ -4187,6 +4204,40 @@ function CassaView({ db }) {
 
   // Gruppo per data per il selettore se non è "today" o "ALL"
   const reverseFilteredOrders = filteredOrders.slice().reverse();
+
+  // Scontrini raggruppati per fascia oraria (più recente in alto) — per non avere
+  // una lista infinita da scrollare sul telefono.
+  const hourGroups = useMemo(() => {
+    const map = {};
+    filteredOrders.forEach(o => {
+      const d = parseCassaProDate(o.date);
+      const h = d ? d.getHours() : -1;
+      if (!map[h]) map[h] = { hour: h, orders: [], total: 0 };
+      map[h].orders.push(o);
+      map[h].total += parseFloat(o.total) || 0;
+    });
+    return Object.values(map)
+      .sort((a, b) => b.hour - a.hour)
+      .map(g => ({
+        hour: g.hour,
+        label: g.hour < 0 ? "Orario sconosciuto" : (String(g.hour).padStart(2, "0") + ":00–" + String(g.hour).padStart(2, "0") + ":59"),
+        count: g.orders.length,
+        total: g.total,
+        orders: g.orders.slice().reverse(), // dentro al gruppo, dal più recente
+      }));
+  }, [filteredOrders]);
+
+  const toggleHour = (h) => {
+    setOpenHours(prev => {
+      const next = new Set(prev);
+      if (next.has(h)) next.delete(h); else next.add(h);
+      return next;
+    });
+  };
+  const allHoursOpen = hourGroups.length > 0 && hourGroups.every(g => openHours.has(g.hour));
+  const toggleAllHours = () => {
+    setOpenHours(allHoursOpen ? new Set() : new Set(hourGroups.map(g => g.hour)));
+  };
 
   // ---- AGGREGATI EXTRA PER IL REPORT ----
   // Metodi di pagamento
@@ -4597,53 +4648,73 @@ function CassaView({ db }) {
                 </div>
               </div>
 
-              {/* STORICO SCONTRINI */}
+              {/* STORICO SCONTRINI — raggruppati per fascia oraria */}
               <div className="cassa-section">
                 <div className="cassa-section-head">
                   <span>Scontrini</span>
-                  <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, opacity:0.7}}>{filteredOrders.length} SCONTRINI · DAL PIÙ RECENTE</span>
+                  <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, opacity:0.7}}>{filteredOrders.length} SCONTRINI · {hourGroups.length} FASCE ORARIE</span>
                 </div>
                 <div className="cassa-section-body">
-                  <div className="receipts-list">
-                    {reverseFilteredOrders.map((o) => {
-                      const centroKey = getCentroKey(o.centro);
-                      const d = parseCassaProDate(o.date);
-                      const timeStr = d ? d.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"}) : "—";
-                      const isExpanded = expandedReceipt === o._key;
+                  <div className="hour-groups">
+                    <button className="hour-toggle-all" onClick={toggleAllHours}>
+                      {allHoursOpen ? "▴ Comprimi tutte le fasce" : "▾ Espandi tutte le fasce"}
+                    </button>
+                    {hourGroups.map(g => {
+                      const open = openHours.has(g.hour);
                       return (
-                        <div
-                          key={o._key}
-                          className={"receipt-row " + (isExpanded ? "expanded" : "")}
-                          onClick={() => setExpandedReceipt(isExpanded ? null : o._key)}
-                        >
-                          <div className="receipt-row-head">
-                            <span className="receipt-num">#{String(o.id || "?").padStart(4, "0")}</span>
-                            <span className={"receipt-centro " + centroKey}>{o.centro || "—"}</span>
-                            <span className="receipt-time">{timeStr}</span>
-                            <span className="receipt-pay">{o.pay || "—"}</span>
-                            <span className="receipt-total">{(parseFloat(o.total) || 0).toFixed(0)}€</span>
+                        <div key={g.hour} className={"hour-group " + (open ? "open" : "")}>
+                          <div className="hour-group-head" onClick={() => toggleHour(g.hour)}>
+                            <span className="hg-caret">{open ? "▾" : "▸"}</span>
+                            <span className="hg-label">{g.label}</span>
+                            <span className="hg-count">{g.count}</span>
+                            <span className="hg-total">{g.total.toFixed(0)}€</span>
                           </div>
-                          {isExpanded && (
-                            <ul className="receipt-items">
-                              {(o.items || []).map((it, j) => (
-                                <li key={j}>
-                                  <span className="item-name">{it.qty}× {it.name}</span>
-                                  <span>{((parseFloat(it.price) || 0) * (parseFloat(it.qty) || 0)).toFixed(2)}€</span>
-                                </li>
-                              ))}
-                              {o.disc > 0 && (
-                                <li style={{borderTop:"1px dashed var(--ink)", marginTop:6, paddingTop:6}}>
-                                  <span className="item-name">Sconto {o.disc}%</span>
-                                  <span>-{(parseFloat(o.discAmt) || 0).toFixed(2)}€</span>
-                                </li>
-                              )}
-                              {o.table && (
-                                <li style={{fontStyle:"italic"}}>
-                                  <span className="item-name">Tavolo: {o.table}</span>
-                                  <span></span>
-                                </li>
-                              )}
-                            </ul>
+                          {open && (
+                            <div className="receipts-list">
+                              {g.orders.map((o) => {
+                                const centroKey = getCentroKey(o.centro);
+                                const d = parseCassaProDate(o.date);
+                                const timeStr = d ? d.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"}) : "—";
+                                const isExpanded = expandedReceipt === o._key;
+                                return (
+                                  <div
+                                    key={o._key}
+                                    className={"receipt-row " + (isExpanded ? "expanded" : "")}
+                                    onClick={() => setExpandedReceipt(isExpanded ? null : o._key)}
+                                  >
+                                    <div className="receipt-row-head">
+                                      <span className="receipt-num">#{String(o.id || "?").padStart(4, "0")}</span>
+                                      <span className={"receipt-centro " + centroKey}>{o.centro || "—"}</span>
+                                      <span className="receipt-time">{timeStr}</span>
+                                      <span className="receipt-pay">{o.pay || "—"}</span>
+                                      <span className="receipt-total">{(parseFloat(o.total) || 0).toFixed(0)}€</span>
+                                    </div>
+                                    {isExpanded && (
+                                      <ul className="receipt-items">
+                                        {(o.items || []).map((it, j) => (
+                                          <li key={j}>
+                                            <span className="item-name">{it.qty}× {it.name}</span>
+                                            <span>{((parseFloat(it.price) || 0) * (parseFloat(it.qty) || 0)).toFixed(2)}€</span>
+                                          </li>
+                                        ))}
+                                        {o.disc > 0 && (
+                                          <li style={{borderTop:"1px dashed var(--ink)", marginTop:6, paddingTop:6}}>
+                                            <span className="item-name">Sconto {o.disc}%</span>
+                                            <span>-{(parseFloat(o.discAmt) || 0).toFixed(2)}€</span>
+                                          </li>
+                                        )}
+                                        {o.table && (
+                                          <li style={{fontStyle:"italic"}}>
+                                            <span className="item-name">Tavolo: {o.table}</span>
+                                            <span></span>
+                                          </li>
+                                        )}
+                                      </ul>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                       );
