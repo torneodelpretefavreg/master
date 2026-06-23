@@ -254,6 +254,38 @@
   .mapping-table tfoot th.zero { color: var(--terracotta); opacity: 0.75; }
   .mapping-table tfoot th .m-badge { background: var(--gold); color: var(--ink); }
 
+  /* === MAPPATURA — VISTA MOBILE A SCHEDE === */
+  .mapping-cards { display: none; flex-direction: column; gap: 12px; }
+  .map-card { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--paper); box-shadow: 3px 3px 0 var(--ink); overflow: hidden; }
+  .map-card-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--green-deep); color: var(--cream); }
+  .map-card-head .mc-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 17px; flex: 1; line-height: 1.1; }
+  .map-card-head .mc-tot { font-family: 'Bebas Neue', sans-serif; font-size: 15px; background: var(--gold); color: var(--green-deep); border-radius: 12px; padding: 2px 11px; flex-shrink: 0; }
+  .map-card-head .mc-tot.zero { background: var(--terracotta); color: var(--cream); }
+  .map-card-area { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px dashed rgba(22,26,24,0.2); }
+  .map-card-area label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
+  .map-card-area select { flex: 1; font-size: 15px; padding: 9px 10px; }
+  .map-card-dates { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 7px; padding: 12px 14px; }
+  .map-date-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 4px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--cream); cursor: pointer; user-select: none; transition: all 0.12s; text-align: center; min-height: 52px; justify-content: center; }
+  .map-date-chip .mdc-day { font-family: 'Bebas Neue', sans-serif; font-size: 15px; line-height: 0.95; letter-spacing: 0.02em; color: var(--ink); }
+  .map-date-chip .mdc-mark { font-size: 14px; line-height: 1; height: 16px; }
+  .map-date-chip.on { background: var(--green-field); border-color: var(--green-deep); box-shadow: inset 0 0 0 2px var(--green-bright); }
+  .map-date-chip.on .mdc-day { color: var(--cream); }
+  .map-date-chip.on .mdc-mark { color: var(--gold); }
+  .map-date-chip.off .mdc-mark { color: rgba(22,26,24,0.25); }
+  .map-date-chip:active { transform: scale(0.95); }
+  .map-card-actions { display: flex; gap: 8px; padding: 0 14px 12px; }
+  .map-card-actions button { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.06em; padding: 9px; border: 1.5px solid var(--ink); border-radius: 5px; background: var(--cream); cursor: pointer; color: var(--ink-soft); }
+  .map-card-actions button.all:hover, .map-card-actions button.all:active { background: var(--green-field); color: var(--cream); border-color: var(--green-deep); }
+  .map-card-actions button.none:hover, .map-card-actions button.none:active { background: var(--terracotta); color: var(--cream); border-color: var(--terracotta-dark); }
+  .map-hint-mobile { display: none; font-size: 12.5px; color: var(--ink-soft); font-style: italic; margin-bottom: 10px; }
+
+  @media (max-width: 720px) {
+    .mapping-wrap { display: none; }
+    .mapping-cards { display: flex; }
+    .map-hint-mobile { display: block; }
+    .map-hint-desktop { display: none; }
+  }
+
   /* === SOTTO-TAB TURNI / ASSICURAZIONI-MAGLIE === */
   .shift-subtabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
   .shift-subtab { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 0.05em; padding: 10px 20px; background: var(--cream-soft); border: 1.5px solid var(--ink); cursor: pointer; color: var(--ink-soft); border-radius: 4px; box-shadow: 2px 2px 0 var(--ink); }
@@ -4156,6 +4188,263 @@ function CassaView({ db }) {
   // Gruppo per data per il selettore se non è "today" o "ALL"
   const reverseFilteredOrders = filteredOrders.slice().reverse();
 
+  // ---- AGGREGATI EXTRA PER IL REPORT ----
+  // Metodi di pagamento
+  const payBreakdown = useMemo(() => {
+    const map = {};
+    filteredOrders.forEach(o => {
+      const label = (o.pay || "Non indicato").toString().trim() || "Non indicato";
+      if (!map[label]) map[label] = { label, total: 0, count: 0 };
+      map[label].total += parseFloat(o.total) || 0;
+      map[label].count++;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [filteredOrders]);
+
+  const avgScontrino = totals.scontrini > 0 ? totals.totale / totals.scontrini : 0;
+
+  const scopeLabel = selectedDate === "today" ? isoToLabel(todayISO)
+    : selectedDate === "ALL" ? "Tutte le serate"
+    : isoToLabel(selectedDate);
+  const scopeFile = selectedDate === "today" ? todayISO
+    : selectedDate === "ALL" ? "tutte-le-serate"
+    : selectedDate;
+
+  // Dati centri ordinati per il report
+  const centroRows = [
+    { key: "cibo", label: "🍕 Cibo", total: totals.cibo },
+    { key: "fritti", label: "🍟 Fritti", total: totals.fritti },
+    { key: "bar", label: "🍺 Bar", total: totals.bar },
+    { key: "altro", label: "Altro", total: totals.altro },
+  ].filter(c => c.total > 0);
+
+  // ---- EXPORT: REPORT HTML (dashboard scaricabile) ----
+  const exportCassaHTML = () => {
+    try {
+      const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+      const eur = (n) => (parseFloat(n) || 0).toFixed(2).replace(".", ",") + " €";
+      const eur0 = (n) => Math.round(parseFloat(n) || 0) + " €";
+      const pct = (n) => totals.totale > 0 ? Math.round(n / totals.totale * 100) + "%" : "—";
+      const genDate = new Date().toLocaleString("it-IT", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const maxH = Math.max(1, ...hourlyData.map(h => h.value));
+
+      const kpiCards = [
+        { cls: "total", label: "Incasso totale", val: eur0(totals.totale), sub: totals.scontrini + " scontrini" },
+        { cls: "", label: "Scontrino medio", val: eur(avgScontrino), sub: "per scontrino" },
+        ...centroRows.map(c => ({ cls: c.key, label: c.label, val: eur0(c.total), sub: pct(c.total) })),
+      ];
+
+      const kpiHTML = kpiCards.map(k =>
+        '<div class="kpi ' + k.cls + '"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-val">' + esc(k.val) + '</div><div class="kpi-sub">' + esc(k.sub) + '</div></div>'
+      ).join("");
+
+      const hourlyHTML = hourlyData.map(h =>
+        '<div class="hbar-wrap"><div class="hbar" style="height:' + Math.max(2, (h.value / maxH) * 100) + '%">' + (h.value > 0 ? '<span>' + eur0(h.value) + '</span>' : '') + '</div><div class="hlab">' + h.hour + '</div></div>'
+      ).join("");
+
+      const payHTML = payBreakdown.map(p =>
+        '<tr><td>' + esc(p.label) + '</td><td class="r">' + p.count + '</td><td class="r">' + eur(p.total) + '</td><td class="r">' + pct(p.total) + '</td></tr>'
+      ).join("");
+
+      const prodHTML = topProducts.map((p, i) =>
+        '<tr><td class="rank">' + (i + 1) + '</td><td>' + esc(p.name) + (p.cat ? ' <span class="tag">' + esc(p.cat) + '</span>' : '') + '</td><td class="r">' + p.qty + '</td><td class="r">' + eur(p.revenue) + '</td></tr>'
+      ).join("");
+
+      const receiptsHTML = filteredOrders.slice().reverse().map(o => {
+        const d = parseCassaProDate(o.date);
+        const t = d ? d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—";
+        const items = (o.items || []).map(it => esc(it.qty + "× " + it.name)).join("<br>");
+        return '<tr><td>#' + esc(String(o.id || "?").padStart(4, "0")) + '</td><td>' + esc(o.centro || "—") + '</td><td>' + esc(t) + '</td><td>' + esc(o.pay || "—") + '</td><td class="items">' + items + (o.disc > 0 ? '<br><i>Sconto ' + esc(o.disc) + '%</i>' : '') + '</td><td class="r">' + eur(o.total) + '</td></tr>';
+      }).join("");
+
+      const html = '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        + '<title>Report Cassa TdP — ' + esc(scopeLabel) + '</title>'
+        + '<style>'
+        + ':root{--green-deep:#0d2818;--green-field:#1a5d3a;--cream:#f4ead5;--gold:#e8b948;--ink:#161a18;--ink-soft:#2a312e;--paper:#faf5e7;--terracotta:#c8553d}'
+        + '*{box-sizing:border-box;margin:0;padding:0}'
+        + 'body{background:var(--paper);color:var(--ink);font-family:Georgia,serif;padding:28px 18px 60px;max-width:1000px;margin:0 auto}'
+        + 'h1{font-family:Impact,sans-serif;font-size:40px;letter-spacing:.02em;color:var(--green-deep);line-height:1}'
+        + 'h2{font-family:Impact,sans-serif;font-size:24px;letter-spacing:.04em;color:var(--green-deep);margin:34px 0 12px;border-bottom:3px solid var(--gold);padding-bottom:6px}'
+        + '.head{border-bottom:4px solid var(--green-deep);padding-bottom:14px;margin-bottom:8px}'
+        + '.sub{font-style:italic;color:var(--ink-soft);margin-top:6px;font-size:15px}'
+        + '.meta{font-family:monospace;font-size:12px;color:var(--ink-soft);letter-spacing:.06em;margin-top:4px}'
+        + '.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--ink);border:2px solid var(--ink);margin-top:20px}'
+        + '.kpi{background:var(--paper);padding:16px 14px}'
+        + '.kpi-label{font-family:monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}'
+        + '.kpi-val{font-family:Impact,sans-serif;font-size:38px;line-height:1.05;margin-top:4px}'
+        + '.kpi-sub{font-family:monospace;font-size:11px;color:var(--ink-soft);margin-top:4px}'
+        + '.kpi.total .kpi-val{color:var(--green-field);font-size:44px}.kpi.cibo .kpi-val{color:#b8870f}.kpi.fritti .kpi-val{color:#9e3d2a}.kpi.bar .kpi-val{color:#2a4a8c}'
+        + '.chart{display:flex;align-items:flex-end;gap:6px;height:200px;border:1.5px solid var(--ink);background:#fff;padding:16px 12px 0;border-radius:4px}'
+        + '.hbar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end}'
+        + '.hbar{width:100%;max-width:46px;background:var(--green-field);border-radius:3px 3px 0 0;position:relative;display:flex;justify-content:center}'
+        + '.hbar span{position:absolute;top:-16px;font-family:monospace;font-size:10px;color:var(--ink-soft);white-space:nowrap}'
+        + '.hlab{font-family:monospace;font-size:11px;color:var(--ink-soft);margin-top:6px}'
+        + 'table{width:100%;border-collapse:collapse;background:#fff;border:1.5px solid var(--ink);border-radius:4px;overflow:hidden}'
+        + 'th{background:var(--green-deep);color:var(--gold);font-family:Impact,sans-serif;letter-spacing:.04em;padding:9px 10px;text-align:left;font-size:14px}'
+        + 'td{padding:8px 10px;border-top:1px solid rgba(22,26,24,.1);font-size:14px;vertical-align:top}'
+        + 'td.r,th.r{text-align:right}.rank{font-family:Impact,sans-serif;color:var(--green-field);width:30px}'
+        + '.tag{font-family:monospace;font-size:10px;background:var(--cream);border:1px solid var(--ink-soft);border-radius:3px;padding:1px 5px;color:var(--ink-soft)}'
+        + '.items{font-size:12px;color:var(--ink-soft)}'
+        + '.foot{margin-top:40px;text-align:center;font-family:monospace;font-size:11px;color:var(--ink-soft);letter-spacing:.08em;border-top:1px solid var(--ink-soft);padding-top:14px}'
+        + '@media print{body{padding:0}.kpi-val{font-size:32px}h1{font-size:32px}}'
+        + '</style></head><body>'
+        + '<div class="head"><h1>Report Cassa — Torneo del Prete 2026</h1>'
+        + '<div class="sub">' + esc(scopeLabel) + (tornamentoLabel(selectedDate === "today" ? todayISO : selectedDate) ? ' · ' + esc(tornamentoLabel(selectedDate === "today" ? todayISO : selectedDate)) : '') + '</div>'
+        + '<div class="meta">Generato il ' + esc(genDate) + ' · Futsal Fabbrico ASD · Dati da CassaPro</div></div>'
+        + '<div class="kpis">' + kpiHTML + '</div>'
+        + (hourlyData.length ? '<h2>Vendite per ora</h2><div class="chart">' + hourlyHTML + '</div>' : '')
+        + (payBreakdown.length ? '<h2>Metodi di pagamento</h2><table><thead><tr><th>Metodo</th><th class="r">Scontrini</th><th class="r">Incasso</th><th class="r">%</th></tr></thead><tbody>' + payHTML + '</tbody></table>' : '')
+        + (topProducts.length ? '<h2>Top prodotti venduti</h2><table><thead><tr><th>#</th><th>Prodotto</th><th class="r">Qtà</th><th class="r">Ricavo</th></tr></thead><tbody>' + prodHTML + '</tbody></table>' : '')
+        + '<h2>Scontrini (' + filteredOrders.length + ')</h2><table><thead><tr><th>N.</th><th>Centro</th><th>Ora</th><th>Pag.</th><th>Articoli</th><th class="r">Totale</th></tr></thead><tbody>' + receiptsHTML + '</tbody></table>'
+        + '<div class="foot">TdP Manager · Report cassa · ' + esc(scopeLabel) + '</div>'
+        + '</body></html>';
+
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "TdP-Report-Cassa-" + scopeFile + ".html";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) { alert("Errore report HTML: " + e.message); }
+  };
+
+  // ---- EXPORT: PDF ----
+  const exportCassaPDF = () => {
+    try {
+      if (typeof window.jspdf === "undefined") { alert("Libreria PDF non caricata."); return; }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const eur = (n) => (parseFloat(n) || 0).toFixed(2) + " EUR";
+      const pct = (n) => totals.totale > 0 ? Math.round(n / totals.totale * 100) + "%" : "-";
+      // Il font Helvetica del PDF non supporta gli emoji: li rimuovo dai testi
+      const noEmoji = (s) => String(s == null ? "" : s)
+        .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{2190}-\u{21FF}]/gu, "")
+        .replace(/\s{2,}/g, " ").trim();
+
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
+      doc.text("Torneo del Prete 2026 — Report Cassa", 14, 16);
+      doc.setFontSize(11); doc.setFont("helvetica", "normal"); doc.setTextColor(90);
+      doc.text(scopeLabel + " · " + totals.scontrini + " scontrini", 14, 23);
+      doc.setFontSize(9);
+      doc.text("Generato il " + new Date().toLocaleString("it-IT") + " · Futsal Fabbrico ASD", 14, 28);
+      doc.setTextColor(0);
+
+      // Riepilogo KPI
+      doc.autoTable({
+        startY: 34,
+        head: [["Riepilogo", "Valore", "%"]],
+        body: [
+          ["Incasso totale", eur(totals.totale), "100%"],
+          ["Scontrino medio", eur(avgScontrino), ""],
+          ...centroRows.map(c => [noEmoji(c.label), eur(c.total), pct(c.total)]),
+        ],
+        theme: "grid", styles: { fontSize: 10, cellPadding: 2.5 },
+        headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
+        columnStyles: { 0: { fontStyle: "bold", fillColor: [240, 234, 199] }, 1: { halign: "right" }, 2: { halign: "right" } },
+        margin: { left: 14, right: 14 },
+      });
+
+      if (payBreakdown.length) {
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 6,
+          head: [["Metodo di pagamento", "Scontrini", "Incasso", "%"]],
+          body: payBreakdown.map(p => [p.label, String(p.count), eur(p.total), pct(p.total)]),
+          theme: "grid", styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [26, 93, 58], textColor: [244, 234, 213], fontStyle: "bold" },
+          columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+          margin: { left: 14, right: 14 },
+        });
+      }
+
+      if (topProducts.length) {
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 6,
+          head: [["#", "Prodotto", "Qta", "Ricavo"]],
+          body: topProducts.map((p, i) => [String(i + 1), noEmoji(p.name) + (p.cat ? " (" + noEmoji(p.cat) + ")" : ""), String(p.qty), eur(p.revenue)]),
+          theme: "grid", styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
+          columnStyles: { 0: { cellWidth: 10 }, 2: { halign: "right" }, 3: { halign: "right" } },
+          margin: { left: 14, right: 14 },
+        });
+      }
+
+      // Scontrini dettagliati
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 6,
+        head: [["N.", "Centro", "Ora", "Pag.", "Totale"]],
+        body: filteredOrders.slice().reverse().map(o => {
+          const d = parseCassaProDate(o.date);
+          const t = d ? d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "-";
+          return ["#" + String(o.id || "?").padStart(4, "0"), noEmoji(o.centro) || "-", t, noEmoji(o.pay) || "-", eur(o.total)];
+        }),
+        theme: "striped", styles: { fontSize: 8, cellPadding: 1.6 },
+        headStyles: { fillColor: [42, 49, 46], textColor: [244, 234, 213], fontStyle: "bold" },
+        columnStyles: { 4: { halign: "right" } },
+        margin: { left: 14, right: 14 },
+      });
+
+      doc.save("TdP-Report-Cassa-" + scopeFile + ".pdf");
+    } catch (e) { alert("Errore PDF: " + e.message); }
+  };
+
+  // ---- EXPORT: EXCEL (multi-foglio) ----
+  const exportCassaExcel = () => {
+    try {
+      const pct = (n) => totals.totale > 0 ? Math.round(n / totals.totale * 100) + "%" : "—";
+      const wb = XLSX.utils.book_new();
+
+      // Foglio 1 — Riepilogo
+      const riep = [
+        ["Report Cassa — Torneo del Prete 2026"],
+        ["Selezione", scopeLabel],
+        ["Generato il", new Date().toLocaleString("it-IT")],
+        [],
+        ["Voce", "Valore (€)", "%"],
+        ["Incasso totale", +totals.totale.toFixed(2), "100%"],
+        ["Scontrino medio", +avgScontrino.toFixed(2), ""],
+        ["N. scontrini", totals.scontrini, ""],
+        [],
+        ["Centro", "Incasso (€)", "%"],
+        ...centroRows.map(c => [c.label.replace(/^[^\sA-Za-z]+\s*/, ""), +c.total.toFixed(2), pct(c.total)]),
+        [],
+        ["Metodo pagamento", "Scontrini", "Incasso (€)"],
+        ...payBreakdown.map(p => [p.label, p.count, +p.total.toFixed(2)]),
+      ];
+      const wsR = XLSX.utils.aoa_to_sheet(riep);
+      wsR["!cols"] = [{ wch: 26 }, { wch: 16 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(wb, wsR, "Riepilogo");
+
+      // Foglio 2 — Scontrini
+      const scont = [["N.", "Data/Ora", "Centro", "Pagamento", "Sconto %", "Totale (€)", "Tavolo", "Articoli"]];
+      filteredOrders.slice().reverse().forEach(o => {
+        const items = (o.items || []).map(it => it.qty + "× " + it.name).join(" | ");
+        scont.push([
+          o.id || "", o.date || "", o.centro || "", o.pay || "",
+          o.disc || 0, +(parseFloat(o.total) || 0).toFixed(2), o.table || "", items,
+        ]);
+      });
+      const wsS = XLSX.utils.aoa_to_sheet(scont);
+      wsS["!cols"] = [{ wch: 6 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, wsS, "Scontrini");
+
+      // Foglio 3 — Top prodotti
+      const prod = [["#", "Prodotto", "Categoria", "Quantità", "Ricavo (€)"]];
+      topProducts.forEach((p, i) => prod.push([i + 1, p.name, p.cat || "", p.qty, +p.revenue.toFixed(2)]));
+      const wsP = XLSX.utils.aoa_to_sheet(prod);
+      wsP["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, wsP, "Prodotti");
+
+      // Foglio 4 — Vendite per ora
+      const ore = [["Ora", "Incasso (€)"], ...hourlyData.map(h => [h.hour + ":00", +h.value.toFixed(2)])];
+      const wsO = XLSX.utils.aoa_to_sheet(ore);
+      wsO["!cols"] = [{ wch: 8 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wsO, "Vendite per ora");
+
+      XLSX.writeFile(wb, "TdP-Report-Cassa-" + scopeFile + ".xlsx");
+    } catch (e) { alert("Errore Excel: " + e.message); }
+  };
+
   return (
     <>
       <div className="section-head">
@@ -4163,6 +4452,13 @@ function CassaView({ db }) {
           <h1>Cassa</h1>
           <div className="subtitle">Report di CassaPro · {orders.length} scontrini totali</div>
         </div>
+        {!loading && filteredOrders.length > 0 && (
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            <button className="btn btn-sm btn-gold" onClick={exportCassaHTML} title={"Scarica il report dashboard (" + scopeLabel + ") come pagina HTML — apribile e stampabile"}>📊 Report</button>
+            <button className="btn btn-sm btn-gold" onClick={exportCassaPDF} title={"Scarica il report (" + scopeLabel + ") in PDF"}>📄 PDF</button>
+            <button className="btn btn-sm btn-gold" onClick={exportCassaExcel} title={"Scarica i dati (" + scopeLabel + ") in Excel"}>📑 Excel</button>
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -4925,8 +5221,11 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             <h3>Mappatura presenze e aree</h3>
             <button className="btn btn-sm btn-gold" onClick={populateFromMapping} title="Assegna ogni persona alla sua area in tutte le serate disponibili">⚡ Popola turni dalla mappatura</button>
           </div>
-          <p style={{fontSize:13, color:"var(--ink-soft)", marginBottom:12, fontStyle:"italic"}}>
+          <p className="map-hint-desktop" style={{fontSize:13, color:"var(--ink-soft)", marginBottom:12, fontStyle:"italic"}}>
             <b>Clicca le celle</b> per impostare le presenze direttamente qui (non serve l'Excel): ✓ = serata disponibile. Clicca l'<b>intestazione di una data</b> per attivarla/azzerarla per tutti, o usa <b>✓ tutte / ✕</b> accanto al nome. Scegli poi l'<b>Area</b> nell'ultima colonna e premi “Popola turni” per riempire la matrice in basso (resta modificabile a mano). L'import del sondaggio resta disponibile come scorciatoia.
+          </p>
+          <p className="map-hint-mobile">
+            <b>Tocca le date</b> di ogni persona per impostare le presenze (verde = disponibile). Scegli l'<b>Area</b>, poi premi “Popola turni”.
           </p>
           <div className="mapping-wrap">
             <table className="mapping-table">
@@ -4983,6 +5282,48 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                 </tr>
               </tfoot>
             </table>
+          </div>
+
+          {/* VISTA MOBILE — schede per persona */}
+          <div className="mapping-cards">
+            {staff.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
+              const cnt = STAFF_DATES.filter(d => isAvailable(s, d.iso)).length;
+              return (
+                <div key={s.id} className="map-card">
+                  <div className="map-card-head">
+                    <span className="mc-name">{s.name}</span>
+                    <span className={"mc-tot " + (cnt === 0 ? "zero" : "")}>{cnt} {cnt === 1 ? "serata" : "serate"}</span>
+                  </div>
+                  <div className="map-card-area">
+                    <label>Area</label>
+                    <select value={s.preferredPosition || ""} onChange={e => setStaffArea(s.id, e.target.value)}>
+                      <option value="">— nessuna —</option>
+                      {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="map-card-dates">
+                    {STAFF_DATES.map(d => {
+                      const yes = isAvailable(s, d.iso);
+                      const short = d.label.replace(/^[A-Za-zàèìòù]+\s/, "");
+                      return (
+                        <div
+                          key={d.iso}
+                          className={"map-date-chip " + (yes ? "on" : "off")}
+                          onClick={() => toggleAvailability(s.id, d.iso)}
+                        >
+                          <span className="mdc-day">{short}</span>
+                          <span className="mdc-mark">{yes ? "✓" : "○"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="map-card-actions">
+                    <button className="all" onClick={() => setRowAvailability(s.id, true)}>✓ Tutte</button>
+                    <button className="none" onClick={() => setRowAvailability(s.id, false)}>✕ Azzera</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
