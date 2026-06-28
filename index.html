@@ -400,6 +400,14 @@
   .stats-tab:hover { color: var(--ink); }
   .stats-tab.active { background: var(--paper); border-color: var(--ink); color: var(--ink); }
 
+  /* Selettore categoria Torneo / Junior */
+  .cat-switch { display: inline-flex; gap: 0; margin-bottom: 22px; border: 1.5px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--paper); box-shadow: 3px 3px 0 var(--ink); }
+  .cat-pill { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 0.06em; padding: 9px 22px; background: transparent; border: none; cursor: pointer; color: var(--ink-soft); transition: background .12s, color .12s; }
+  .cat-pill:not(:last-child) { border-right: 1.5px solid var(--ink); }
+  .cat-pill:hover { color: var(--ink); }
+  .cat-pill.active { background: var(--green-field); color: var(--gold); }
+  .cat-pill.active.junior { background: var(--terracotta); color: var(--paper); }
+
   .stats-grid-girone { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px; }
   .stats-card { background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px; overflow: hidden; box-shadow: 4px 4px 0 var(--ink); }
   .stats-card-head { background: var(--green-deep); color: var(--gold); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
@@ -766,6 +774,12 @@ function useIscrizioniSync(accountingDb, teams, quotaIscrizione, quotaPerGiocato
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const GIRONE_NAMES = ["A", "B", "C", "D"];
+// Categoria torneo: "senior" (torneo principale) o "junior". Le squadre/partite senza
+// campo `category` sono trattate come "senior" per retrocompatibilità coi dati esistenti.
+const CATS = ["senior", "junior"];
+const CAT_LABEL = { senior: "Torneo", junior: "Junior" };
+const teamCat = (t) => (t && t.category === "junior") ? "junior" : "senior";
+const matchCat = (m) => (m && m.category === "junior") ? "junior" : "senior";
 const POINTS_WIN = 3;
 const POINTS_DRAW = 1;
 
@@ -1211,9 +1225,10 @@ function App() {
   });
 
   // Hook che pubblica iscrizioni su Firebase contabilità e legge pagamenti
+  // Solo squadre del torneo principale (senior): il torneo Junior non entra nella contabilità iscrizioni.
   const payments = useIscrizioniSync(
     accountingFb.db,
-    teams,
+    teams.filter(t => teamCat(t) === "senior"),
     quoteConfig.quotaIscrizione || QUOTA_ISCRIZIONE_DEFAULT,
     quoteConfig.quotaPerGiocatore || QUOTA_ASSICURAZIONE_PER_GIOCATORE_DEFAULT,
     quoteConfig.syncEnabled !== false
@@ -1222,18 +1237,56 @@ function App() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
   const setRolePersistent = (r) => { setRole(r); localStorage.setItem("tdp.role", r); };
 
+  // ===== Categoria attiva: "senior" (torneo principale) o "junior" =====
+  // Condivisa fra Squadre, Gironi, Calendario, Statistiche e Liberatorie.
+  const [category, setCategoryRaw] = useState(() => localStorage.getItem("tdp.category") || "senior");
+  const setCategory = (c) => { setCategoryRaw(c); localStorage.setItem("tdp.category", c); };
+
+  // Dataset filtrati per la categoria attiva
+  const catTeams = useMemo(() => teams.filter(t => teamCat(t) === category), [teams, category]);
+  const catMatches = useMemo(() => matches.filter(m => matchCat(m) === category), [matches, category]);
+  const seniorTeams = useMemo(() => teams.filter(t => teamCat(t) === "senior"), [teams]);
+  const seniorMatches = useMemo(() => matches.filter(m => matchCat(m) === "senior"), [matches]);
+
+  // Setter che scrive SOLO sulla categoria attiva, preservando l'altra.
+  // Accetta sia un nuovo array sia una funzione (catArray) => nuovoArray.
+  const setCatTeams = (next) => {
+    const others = teams.filter(t => teamCat(t) !== category);
+    const arr = (typeof next === "function") ? next(catTeams) : next;
+    const tagged = (arr || []).map(t => Object.assign({}, t, { category: t.category || category }));
+    setTeams([...others, ...tagged]);
+  };
+  const setCatMatches = (next) => {
+    const others = matches.filter(m => matchCat(m) !== category);
+    const arr = (typeof next === "function") ? next(catMatches) : next;
+    const tagged = (arr || []).map(m => Object.assign({}, m, { category: m.category || category }));
+    setMatches([...others, ...tagged]);
+  };
+  // Aggiorna girone/posizione di alcune squadre (qualunque categoria) — usato dall'import calendario
+  const assignTeamGironi = (assignments) => {
+    if (!assignments || !assignments.length) return;
+    const map = {};
+    assignments.forEach(a => { map[a.teamId] = a; });
+    setTeams(teams.map(t => map[t.id]
+      ? Object.assign({}, t, {
+          girone: map[t.id].girone || t.girone,
+          seedingPosition: map[t.id].seedingPosition != null ? map[t.id].seedingPosition : t.seedingPosition,
+        })
+      : t));
+  };
+
   // Genera il calendario dal template ufficiale 2026 (33 partite)
   // I match della fase a gironi vengono abbinati alle squadre tramite seedingPosition
   // Quelli della fase finali restano "placeholder" e si risolvono runtime tramite la classifica
   const regenerateSchedule = () => {
-    // Solo partite di gironi
+    // Solo partite di gironi (lo schema ufficiale riguarda il torneo principale = senior)
     const gironiTemplate = TOURNAMENT_MATCHES_TEMPLATE.filter(t => t.phase === "gironi");
 
-    // Verifica che ci siano squadre nei gironi
+    // Verifica che ci siano squadre senior nei gironi
     const teamsByGirone = {};
     GIRONE_NAMES.forEach(g => {
-      // Squadre in ordine di inserimento nell'array `teams`
-      teamsByGirone[g] = teams.filter(t => t.girone === g);
+      // Squadre senior in ordine di inserimento nell'array `teams`
+      teamsByGirone[g] = teams.filter(t => t.girone === g && teamCat(t) === "senior");
     });
 
     // Controllo: serve almeno qualche squadra in qualche girone
@@ -1273,6 +1326,7 @@ function App() {
         date: t.date,
         time: t.time,
         phase: "gironi",
+        category: "senior",
         girone: t.home.charAt(0),
         home: homeId,        // teamId concreto (null se squadra mancante)
         away: awayId,
@@ -1286,7 +1340,9 @@ function App() {
       };
     });
 
-    setMatches(newMatches);
+    // Preservo le partite junior (e qualunque cosa non-senior), sostituisco solo le senior
+    const juniorMatches = matches.filter(m => matchCat(m) !== "senior");
+    setMatches([...juniorMatches, ...newMatches]);
     const created = newMatches.length;
     const conSquadre = newMatches.filter(m => m.home && m.away).length;
     showToast("Calendario generato: " + created + " partite (" + conSquadre + " complete)");
@@ -1299,13 +1355,13 @@ function App() {
       <Header role={role} onRoleChange={setRolePersistent} online={fb.online} config={config} />
       <Tabs view={view} onChange={setView} canEdit={canEdit} />
       <main>
-        {view === "home" && <Home teams={teams} matches={matches} config={config} />}
-        {view === "squadre" && <TeamsView teams={teams} setTeams={setTeams} canEdit={canEdit} showToast={showToast} payments={payments} quoteConfig={quoteConfig} />}
-        {view === "gironi" && <GironiView teams={teams} matches={matches} />}
-        {view === "calendario" && <CalendarView teams={teams} matches={matches} setMatches={setMatches} canEdit={canEdit} showToast={showToast} />}
-        {view === "statistiche" && <StatsView teams={teams} matches={matches} />}
+        {view === "home" && <Home teams={seniorTeams} matches={seniorMatches} config={config} />}
+        {view === "squadre" && <TeamsView teams={catTeams} setTeams={setCatTeams} canEdit={canEdit} showToast={showToast} payments={payments} quoteConfig={quoteConfig} category={category} setCategory={setCategory} />}
+        {view === "gironi" && <GironiView teams={catTeams} matches={catMatches} category={category} setCategory={setCategory} />}
+        {view === "calendario" && <CalendarView teams={catTeams} matches={catMatches} setMatches={setCatMatches} assignTeamGironi={assignTeamGironi} canEdit={canEdit} showToast={showToast} category={category} setCategory={setCategory} />}
+        {view === "statistiche" && <StatsView teams={catTeams} matches={catMatches} category={category} setCategory={setCategory} />}
         {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} insurance={insurance} setInsurance={setInsurance} shirts={shirts} setShirts={setShirts} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />}
-        {view === "liberatorie" && canEdit && <LiberatorieView teams={teams} liberatorie={liberatorie} setLiberatorie={setLiberatorie} showToast={showToast} />}
+        {view === "liberatorie" && canEdit && <LiberatorieView teams={catTeams} liberatorie={liberatorie} setLiberatorie={setLiberatorie} showToast={showToast} category={category} setCategory={setCategory} />}
         {view === "liberatorie" && !canEdit && (
           <div className="empty"><div className="empty-icon">🔒</div><h3>Sezione riservata</h3><p>Attiva la modalità Staff per generare le liberatorie.</p></div>
         )}
@@ -1402,6 +1458,23 @@ function Tabs({ view, onChange, canEdit }) {
   );
 }
 
+function CategorySwitch({ category, onChange }) {
+  return (
+    <div className="cat-switch" role="tablist" aria-label="Categoria torneo">
+      {CATS.map(c => (
+        <button
+          key={c}
+          className={"cat-pill " + c + (category === c ? " active" : "")}
+          onClick={() => onChange(c)}
+          aria-selected={category === c}
+        >
+          {c === "junior" ? "🧒 " : "🏆 "}{CAT_LABEL[c]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Home({ teams, matches, config }) {
   const playedMatches = matches.filter(m => m.played).length;
   const totalGoals = matches.reduce((acc, m) => acc + (m.homeScore||0) + (m.awayScore||0), 0);
@@ -1473,7 +1546,7 @@ function Home({ teams, matches, config }) {
   );
 }
 
-function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig }) {
+function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig, category, setCategory }) {
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("ALL");
   const [importOpen, setImportOpen] = useState(false);
@@ -1500,11 +1573,12 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
   };
 
   const importTeams = (parsedTeams, mode) => {
-    if (mode === "replace") setTeams(parsedTeams);
-    else setTeams([...teams, ...parsedTeams]);
+    const tagged = parsedTeams.map(t => Object.assign({}, t, { category: category }));
+    if (mode === "replace") setTeams(tagged);
+    else setTeams([...teams, ...tagged]);
     setImportOpen(false);
-    const totalPlayers = parsedTeams.reduce((a, t) => a + t.players.length, 0);
-    showToast("Importate " + parsedTeams.length + " squadre, " + totalPlayers + " giocatori");
+    const totalPlayers = tagged.reduce((a, t) => a + t.players.length, 0);
+    showToast("Importate " + tagged.length + " squadre, " + totalPlayers + " giocatori");
   };
 
   // Assegna automaticamente le posizioni di sorteggio (1-4) alle squadre in ogni girone
@@ -1564,10 +1638,11 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
 
   return (
     <>
+      {setCategory && <CategorySwitch category={category} onChange={setCategory} />}
       <div className="section-head">
         <div>
-          <h1>Le Squadre</h1>
-          <div className="subtitle">{teams.length} squadre · {teams.reduce((a,t)=>a+(t.players?t.players.length:0),0)} giocatori totali</div>
+          <h1>Le Squadre{category === "junior" ? " · Junior" : ""}</h1>
+          <div className="subtitle">{teams.length} squadre · {teams.reduce((a,t)=>a+(t.players?t.players.length:0),0)} giocatori totali{category === "junior" ? " · Torneo Junior" : ""}</div>
         </div>
         {canEdit && (
           <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
@@ -1577,15 +1652,15 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
                 ⚡ Auto-assegna posizioni
               </button>
             )}
-            <button className="btn btn-primary" onClick={() => setEditing({ id: null, name: "", captain: "", contact: "", girone: "", color: "#1a5d3a", players: [] })}>
+            <button className="btn btn-primary" onClick={() => setEditing({ id: null, name: "", captain: "", contact: "", girone: "", color: "#1a5d3a", players: [], category: category })}>
               + Nuova squadra
             </button>
             {teams.length > 0 && (
               <button className="btn btn-danger" onClick={() => {
-                if (!confirm("Svuotare TUTTE le squadre e i relativi giocatori? L'operazione non è reversibile.")) return;
+                if (!confirm("Svuotare tutte le squadre" + (category === "junior" ? " Junior" : " del torneo principale") + " e i relativi giocatori? L'altra categoria non viene toccata. L'operazione non è reversibile.")) return;
                 setTeams([]);
-                showToast("Tutte le squadre eliminate");
-              }} title="Elimina tutte le squadre e i giocatori">🗑 Svuota tutte</button>
+                showToast("Squadre eliminate");
+              }} title="Elimina tutte le squadre e i giocatori di questa categoria">🗑 Svuota tutte</button>
             )}
           </div>
         )}
@@ -1638,7 +1713,7 @@ function TeamsView({ teams, setTeams, canEdit, showToast, payments, quoteConfig 
           {canEdit && (
             <div style={{display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap"}}>
               <button className="btn btn-gold" onClick={() => setImportOpen(true)}>📊 Importa Excel</button>
-              <button className="btn btn-primary" onClick={() => setEditing({ id: null, name: "", captain: "", contact: "", girone: "", color: "#1a5d3a", players: [] })}>+ Nuova squadra</button>
+              <button className="btn btn-primary" onClick={() => setEditing({ id: null, name: "", captain: "", contact: "", girone: "", color: "#1a5d3a", players: [], category: category })}>+ Nuova squadra</button>
             </div>
           )}
         </div>
@@ -2195,12 +2270,13 @@ function ImportExcelModal({ onImport, onCancel, existingTeamCount }) {
   );
 }
 
-function GironiView({ teams, matches }) {
+function GironiView({ teams, matches, category, setCategory }) {
   return (
     <>
+      {setCategory && <CategorySwitch category={category} onChange={setCategory} />}
       <div className="section-head">
         <div>
-          <h1>Gironi & Classifiche</h1>
+          <h1>Gironi & Classifiche{category === "junior" ? " · Junior" : ""}</h1>
           <div className="subtitle">Le prime due di ogni girone accedono ai quarti.</div>
         </div>
       </div>
@@ -2245,7 +2321,7 @@ function GironiView({ teams, matches }) {
   );
 }
 
-function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
+function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast, category, setCategory }) {
   const lib = liberatorie || {};
   const libFileRef = useRef(null);
   const [libPreview, setLibPreview] = useState(null);
@@ -2444,9 +2520,10 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
 
   return (
     <>
+      {setCategory && <CategorySwitch category={category} onChange={setCategory} />}
       <div className="section-head">
         <div>
-          <h1>Liberatorie</h1>
+          <h1>Liberatorie{category === "junior" ? " · Junior" : ""}</h1>
           <div className="subtitle">{players.length} giocatori · PDF precompilato con i dati di ciascuno</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
@@ -2556,7 +2633,7 @@ function LiberatorieView({ teams, liberatorie, setLiberatorie, showToast }) {
   );
 }
 
-function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
+function CalendarView({ teams, matches, setMatches, assignTeamGironi, canEdit, showToast, category, setCategory }) {
   const [filter, setFilter] = useState("ALL"); // ALL | gironi | quarti | semi | finali | "YYYY-MM-DD"
   const [editing, setEditing] = useState(null);
   const calFileRef = useRef(null);
@@ -2635,29 +2712,82 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
     if (!calPreview) return;
     const newMatches = calPreview.rows.map(r => ({
       id: uid(), date: r.date, time: r.time, phase: r.phase, girone: r.girone,
+      category: category,
       home: r.home, away: r.away, slotHome: "", slotAway: "",
       homeScore: r.homeScore, awayScore: r.awayScore, played: r.played,
       field: r.field || null, events: [],
     }));
+
+    // Abbina automaticamente le squadre ai gironi in base alle righe della fase a gironi.
+    // La posizione (A1/A2/...) segue l'ordine di prima apparizione nel file.
+    const posCounter = {};
+    const assignsMap = {};
+    calPreview.rows.forEach(r => {
+      if (r.phase !== "gironi" || !r.girone) return;
+      ["home", "away"].forEach(side => {
+        const tid = r[side];
+        if (!tid || assignsMap[tid]) return;
+        posCounter[r.girone] = (posCounter[r.girone] || 0) + 1;
+        assignsMap[tid] = {
+          teamId: tid,
+          girone: r.girone,
+          seedingPosition: posCounter[r.girone] <= 4 ? posCounter[r.girone] : null,
+        };
+      });
+    });
+    const assigns = Object.values(assignsMap);
+
     setMatches(newMatches);
+    if (assigns.length && assignTeamGironi) assignTeamGironi(assigns);
     setCalPreview(null);
-    showToast(newMatches.length + " partite importate");
+    const gironiAssegnati = assigns.length;
+    showToast(newMatches.length + " partite importate" + (gironiAssegnati ? " · " + gironiAssegnati + " squadre abbinate ai gironi" : ""));
   };
 
   const downloadTemplate = () => {
     try {
-      const aoa = [
-        ["Data", "Orario", "Fase", "Girone", "Casa", "Trasferta", "Gol Casa", "Gol Trasferta", "Campo"],
-        ["22/06/2026", "20:00", "Gironi", "A", "Bronx", "Favregas", "", "", "Campo 1"],
-        ["22/06/2026", "21:00", "Gironi", "B", "Ammond", "Benedetti dal Palo", "", "", "Campo 1"],
-        ["24/06/2026", "20:00", "Gironi", "C", "Al Leon d'Oro", "Azul Club", "", "", "Campo 1"],
-        ["10/07/2026", "21:00", "Quarti", "", "1° Girone A", "2° Girone B", "", "", "Campo 1"],
-      ];
+      const header = ["Data", "Orario", "Fase", "Girone", "Casa", "Trasferta", "Gol Casa", "Gol Trasferta", "Campo"];
+      let aoa;
+      let fname;
+      if (category === "junior") {
+        // Junior: struttura libera. Righe d'esempio che l'utente adatta al proprio format.
+        aoa = [
+          header,
+          ["28/06/2026", "18:00", "Gironi", "A", "Squadra Junior 1", "Squadra Junior 2", "", "", "Campo 1"],
+          ["28/06/2026", "18:45", "Gironi", "A", "Squadra Junior 3", "Squadra Junior 4", "", "", "Campo 1"],
+          ["30/06/2026", "18:00", "Gironi", "B", "Squadra Junior 5", "Squadra Junior 6", "", "", "Campo 1"],
+          ["05/07/2026", "18:00", "Finale", "", "1ª classificata", "2ª classificata", "", "", "Campo 1"],
+        ];
+        fname = "TdP-2026-Template-Calendario-Junior.xlsx";
+      } else {
+        // Senior: schema ufficiale completo (24 gironi + finali). Compila Casa/Trasferta coi nomi reali.
+        aoa = [header];
+        const phaseLabelXlsx = (p) => p === "gironi" ? "Gironi"
+          : p === "quarti" ? "Quarti"
+          : p === "semi" ? "Semifinale"
+          : p === "finalina" ? "Finalina"
+          : p === "finale_under" ? "Finale Under"
+          : p === "finale" ? "Finale" : p;
+        TOURNAMENT_MATCHES_TEMPLATE.forEach(t => {
+          const homeLbl = t.phase === "gironi" ? "" : slotLabel(t.home, [], []);
+          const awayLbl = t.phase === "gironi" ? "" : slotLabel(t.away, [], []);
+          aoa.push([
+            fmtDateIT(t.date),
+            t.time,
+            phaseLabelXlsx(t.phase),
+            t.phase === "gironi" ? t.home.charAt(0) : "",
+            homeLbl,
+            awayLbl,
+            "", "", "Campo 1",
+          ]);
+        });
+        fname = "TdP-2026-Template-Calendario-Open.xlsx";
+      }
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 9 }, { wch: 13 }, { wch: 12 }];
+      ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 8 }, { wch: 26 }, { wch: 26 }, { wch: 9 }, { wch: 13 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(wb, ws, "Calendario");
-      XLSX.writeFile(wb, "TdP-Template-Calendario.xlsx");
+      XLSX.writeFile(wb, fname);
       showToast("Template scaricato");
     } catch (e) { alert("Errore: " + e.message); }
   };
@@ -2878,14 +3008,15 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
 
   return (
     <>
+      {setCategory && <CategorySwitch category={category} onChange={setCategory} />}
       <div className="section-head">
         <div>
-          <h1>Calendario</h1>
+          <h1>Calendario{category === "junior" ? " · Junior" : ""}</h1>
           <div className="subtitle">{playedCount} / {totalCount} partite giocate</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
           {canEdit && <input ref={calFileRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleCalendarFile} style={{display:"none"}} />}
-          {canEdit && <button className="btn btn-sm btn-gold" onClick={() => calFileRef.current && calFileRef.current.click()} title="Importa un calendario già pronto da Excel">📥 Importa calendario</button>}
+          {canEdit && <button className="btn btn-sm btn-gold" onClick={() => calFileRef.current && calFileRef.current.click()} title="Importa un calendario già pronto da Excel (abbina anche le squadre ai gironi)">📥 Importa calendario</button>}
           {canEdit && <button className="btn btn-sm" onClick={downloadTemplate} title="Scarica il modello Excel da compilare">📋 Template</button>}
           {totalCount > 0 && <button className="btn btn-sm btn-gold" onClick={exportCalendarPDF} title="Esporta calendario in PDF">📄 PDF</button>}
           {totalCount > 0 && <button className="btn btn-sm btn-gold" onClick={exportCalendarExcel} title="Esporta calendario in Excel">📊 Excel</button>}
@@ -2896,7 +3027,11 @@ function CalendarView({ teams, matches, setMatches, canEdit, showToast }) {
         <div className="empty">
           <div className="empty-icon">📅</div>
           <h3>Calendario non generato</h3>
-          <p>Vai in <strong>Admin → Genera calendario gironi</strong> per creare le partite a partire dalle squadre nei gironi.</p>
+          {category === "junior" ? (
+            <p>Per il torneo Junior: scarica il <strong>Template</strong>, compilalo con squadre e risultati, poi usa <strong>Importa calendario</strong>. L'import abbina anche le squadre ai gironi.</p>
+          ) : (
+            <p>Usa <strong>Importa calendario</strong> (consigliato: abbina anche le squadre ai gironi) oppure <strong>Admin → Genera calendario gironi</strong> partendo dalle squadre nei gironi.</p>
+          )}
         </div>
       )}
 
@@ -3296,7 +3431,7 @@ function MatchEditor({ match, teams, allMatches, onSave, onCancel }) {
 // =================================================================
 // STATISTICHE — Marcatori e Cartellini
 // =================================================================
-function StatsView({ teams, matches }) {
+function StatsView({ teams, matches, category, setCategory }) {
   const [tab, setTab] = useState("scorers"); // "scorers" | "cards"
 
   // Mappa squadra per id
@@ -3375,9 +3510,10 @@ function StatsView({ teams, matches }) {
 
   return (
     <>
+      {setCategory && <CategorySwitch category={category} onChange={setCategory} />}
       <div className="section-head">
         <div>
-          <h1>Statistiche</h1>
+          <h1>Statistiche{category === "junior" ? " · Junior" : ""}</h1>
           <div className="subtitle">
             {totalGoals} gol · {totalYellows} ammonizioni · {totalReds} espulsioni
           </div>
@@ -6736,7 +6872,7 @@ function AdminView({ config, setConfig, teams, setTeams, matches, setMatches, on
         <PagamentiCard
           quoteConfig={quoteConfig}
           setQuoteConfig={setQuoteConfig}
-          teams={teams}
+          teams={teams.filter(t => teamCat(t) === "senior")}
           payments={payments}
           accountingOnline={accountingOnline}
           showToast={showToast}
@@ -6750,7 +6886,7 @@ function AdminView({ config, setConfig, teams, setTeams, matches, setMatches, on
           </p>
           <div style={{padding:"10px 12px", background:"var(--cream-soft)", border:"1.5px solid var(--ink)", borderRadius:3, marginBottom:14, fontSize:13, fontFamily:"'JetBrains Mono', monospace"}}>
             {GIRONE_NAMES.map(g => {
-              const inG = teams.filter(t => t.girone === g);
+              const inG = teams.filter(t => t.girone === g && teamCat(t) === "senior");
               const isOk = inG.length === 4;
               return (
                 <div key={g} style={{display:"flex", justifyContent:"space-between", padding:"4px 0", color: isOk ? "var(--green-field)" : "var(--terracotta-dark)"}}>
