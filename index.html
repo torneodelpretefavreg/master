@@ -169,6 +169,23 @@
 
   /* === TURNI / SHIFTS === */
   .shifts-panel { background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px; padding: 18px; margin-bottom: 24px; box-shadow: 3px 3px 0 var(--ink); }
+  /* Gestione serate */
+  .dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .date-manage-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 10px; background: var(--cream-soft); border: 1.5px solid var(--ink); border-radius: 6px; transition: background 0.15s, box-shadow 0.15s; }
+  .date-manage-chip.sel { background: #fff6df; box-shadow: 0 0 0 2px var(--gold-deep) inset; }
+  .date-manage-chip.grp { background: linear-gradient(180deg, #eef5ee, var(--cream-soft)); border-color: var(--green-field); }
+  .date-manage-chip .dmc-main { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .date-manage-chip input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green-field); }
+  .date-manage-chip .dmc-label { font-weight: 600; font-size: 14px; }
+  .date-manage-chip .dmc-phase { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--ink-soft); text-transform: uppercase; }
+  .date-manage-chip .dmc-actions { display: inline-flex; align-items: center; gap: 4px; padding-left: 2px; border-left: 1px solid rgba(0,0,0,0.12); }
+  .date-manage-chip .dmc-split { background: var(--green-field); color: var(--cream); border: none; border-radius: 4px; font-size: 10px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; padding: 3px 7px; cursor: pointer; text-transform: uppercase; }
+  .date-manage-chip .dmc-split:hover { background: var(--green-deep); }
+  .date-manage-chip .dmc-del { background: none; border: none; color: var(--terracotta-dark); font-size: 14px; cursor: pointer; line-height: 1; opacity: 0.6; padding: 2px 4px; }
+  .date-manage-chip .dmc-del:hover { opacity: 1; }
+  .date-add-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(0,0,0,0.15); }
+  .date-add-row label { display: block; font-size: 11px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; color: var(--ink-soft); margin-bottom: 3px; text-transform: uppercase; }
+  .date-add-row input { padding: 7px 9px; }
   .shifts-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px dashed var(--ink); flex-wrap: wrap; }
   .shifts-panel-head h3 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.04em; }
 
@@ -807,6 +824,28 @@ const STAFF_DATES = [
   { iso: "2026-07-19", label: "Dom 19 lug", phase: "Finale Mondiali" },
 ];
 
+// ===== SERATE STAFF EDITABILI =====
+// La lista serate viene salvata su Firebase (chiave "staffDates") così è modificabile
+// e persistente. Ogni voce ha una `key` stabile: per le serate singole coincide con l'ISO
+// (retro-compatibile con turni/presenze già salvati); per i GRUPPI è un id sintetico "grp_…".
+// Un gruppo unisce più serate in un'unica riga/colonna e conserva i membri per poterlo separare.
+const dateKey = (d) => (d && (d.key != null ? d.key : d.iso)) || "";
+const defaultStaffDates = () => STAFF_DATES.map(d => ({ key: d.iso, iso: d.iso, label: d.label, phase: d.phase }));
+// ISO cronologico "di riferimento" della voce (per ordinare); per i gruppi il primo membro
+const entryFirstISO = (d) => (d.group && d.members && d.members.length)
+  ? d.members.map(m => m.iso).filter(Boolean).sort()[0] || ""
+  : (d.iso || (typeof d.key === "string" && /^\d{4}-\d{2}-\d{2}/.test(d.key) ? d.key : "") || "");
+const GG_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+const MM_IT_ABBR = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+function labelFromISO(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  if (!m) return iso || "";
+  const dt = new Date(+m[1], +m[2] - 1, +m[3]);
+  return GG_IT[dt.getDay()] + " " + String(+m[3]) + " " + MM_IT_ABBR[+m[2] - 1];
+}
+// normalizza il valore di una cella turno in array di staffId (retro-compat con vecchio formato stringa)
+const normShiftArr = (v) => !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
+
 // Formatta una data (oggetto Date, seriale Excel o stringa) in formato italiano gg/mm/aaaa
 function fmtDateIT(v) {
   if (v == null || v === "") return "";
@@ -1212,6 +1251,7 @@ function App() {
   const [staff, setStaff] = useFirebaseValue(fb.db, "staff", []);
   const [positions, setPositions] = useFirebaseValue(fb.db, "positions", DEFAULT_POSITIONS);
   const [shifts, setShifts] = useFirebaseValue(fb.db, "shifts", {});
+  const [staffDates, setStaffDates] = useFirebaseValue(fb.db, "staffDates", defaultStaffDates());
   const [insurance, setInsurance] = useFirebaseValue(fb.db, "insurance", []);
   const [shirts, setShirts] = useFirebaseValue(fb.db, "shirts", []);
   const [mansioni, setMansioni] = useFirebaseValue(fb.db, "mansioni", {});
@@ -1359,8 +1399,8 @@ function App() {
         {view === "squadre" && <TeamsView teams={catTeams} setTeams={setCatTeams} canEdit={canEdit} showToast={showToast} payments={payments} quoteConfig={quoteConfig} category={category} setCategory={setCategory} />}
         {view === "gironi" && <GironiView teams={catTeams} matches={catMatches} category={category} setCategory={setCategory} />}
         {view === "calendario" && <CalendarView teams={catTeams} matches={catMatches} setMatches={setCatMatches} assignTeamGironi={assignTeamGironi} canEdit={canEdit} showToast={showToast} category={category} setCategory={setCategory} />}
-        {view === "statistiche" && <StatsView teams={catTeams} matches={catMatches} category={category} setCategory={setCategory} />}
-        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} insurance={insurance} setInsurance={setInsurance} shirts={shirts} setShirts={setShirts} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />}
+        {view === "statistiche" && <StatsView teams={catTeams} matches={catMatches} setMatches={setCatMatches} canEdit={canEdit} category={category} setCategory={setCategory} showToast={showToast} />}
+        {view === "turni" && canEdit && <ShiftsView staff={staff} setStaff={setStaff} positions={positions} setPositions={setPositions} shifts={shifts} setShifts={setShifts} staffDates={staffDates} setStaffDates={setStaffDates} insurance={insurance} setInsurance={setInsurance} shirts={shirts} setShirts={setShirts} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />}
         {view === "liberatorie" && canEdit && <LiberatorieView teams={catTeams} liberatorie={liberatorie} setLiberatorie={setLiberatorie} showToast={showToast} category={category} setCategory={setCategory} />}
         {view === "liberatorie" && !canEdit && (
           <div className="empty"><div className="empty-icon">🔒</div><h3>Sezione riservata</h3><p>Attiva la modalità Staff per generare le liberatorie.</p></div>
@@ -3431,8 +3471,9 @@ function MatchEditor({ match, teams, allMatches, onSave, onCancel }) {
 // =================================================================
 // STATISTICHE — Marcatori e Cartellini
 // =================================================================
-function StatsView({ teams, matches, category, setCategory }) {
+function StatsView({ teams, matches, setMatches, canEdit, category, setCategory, showToast }) {
   const [tab, setTab] = useState("scorers"); // "scorers" | "cards"
+  const [importOpen, setImportOpen] = useState(false);
 
   // Mappa squadra per id
   const teamById = useMemo(() => {
@@ -3518,7 +3559,23 @@ function StatsView({ teams, matches, category, setCategory }) {
             {totalGoals} gol · {totalYellows} ammonizioni · {totalReds} espulsioni
           </div>
         </div>
+        {canEdit && setMatches && (
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            <button className="btn btn-gold" onClick={() => setImportOpen(true)} title="Importa risultati e statistiche da un foglio Excel">📥 Importa Excel risultati</button>
+          </div>
+        )}
       </div>
+
+      {importOpen && (
+        <StatsImportModal
+          teams={teams}
+          matches={matches}
+          setMatches={setMatches}
+          category={category}
+          showToast={showToast}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
 
       <div className="stats-tabs">
         <button className={"stats-tab " + (tab === "scorers" ? "active" : "")} onClick={() => setTab("scorers")}>
@@ -3537,6 +3594,248 @@ function StatsView({ teams, matches, category, setCategory }) {
         <CardsTab cards={cards} cardsByGirone={cardsByGirone} />
       )}
     </>
+  );
+}
+
+// =================================================================
+// IMPORT RISULTATI / STATISTICHE DA EXCEL (stile Sofascore)
+// Foglio: una riga per partita. Colonne riconosciute (intestazioni flessibili):
+//   Data · Casa · Ospite · Gol Casa · Gol Ospite ·
+//   Marcatori Casa · Marcatori Ospite · Ammoniti Casa · Ammoniti Ospite ·
+//   Espulsi Casa · Espulsi Ospite
+// I marcatori/ammoniti/espulsi sono nomi separati da virgola; "Rossi x2" o "Rossi (2)" = due volte.
+// =================================================================
+function StatsImportModal({ teams, matches, setMatches, category, showToast, onClose }) {
+  const fileRef = useRef(null);
+  const [preview, setPreview] = useState(null); // { matched, unmatchedTeams, noMatch, sheet }
+
+  const norm = (s) => String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+  const parseNameList = (cell) => {
+    if (cell == null) return [];
+    const s = String(cell).trim();
+    if (!s) return [];
+    const out = [];
+    s.split(/[,;\n]+/).forEach(tok => {
+      let t = tok.trim(); if (!t) return;
+      let count = 1;
+      const m = t.match(/^(.*?)\s*(?:x\s*(\d+)|\((\d+)\))\s*$/i);
+      if (m && (m[2] || m[3])) { t = m[1].trim(); count = parseInt(m[2] || m[3], 10) || 1; }
+      if (t) for (let i = 0; i < count; i++) out.push(t);
+    });
+    return out;
+  };
+
+  // indice giocatori per squadra (per abbinare i nomi ai giocatori in rosa)
+  const playerIndex = useMemo(() => {
+    const idx = {};
+    teams.forEach(t => {
+      const map = {};
+      (t.players || []).forEach(p => { if (p && p.name) map[norm(p.name)] = { id: p.id || ("ply_" + norm(p.name)), name: p.name }; });
+      idx[t.id] = map;
+    });
+    return idx;
+  }, [teams]);
+
+  const resolvePlayer = (teamId, rawName) => {
+    const map = playerIndex[teamId] || {};
+    const key = norm(rawName);
+    if (map[key]) return map[key];
+    return { id: "imp_" + teamId + "_" + key.replace(/\s+/g, "_"), name: rawName.trim() };
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array", cellDates: true });
+        const sn = wb.SheetNames.find(n => /risultati|partite|calendar|sofa|stat/i.test(n)) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
+        const tests = [
+          ["golCasa", /(gol|reti|punti).*casa|casa.*(gol|reti)/i],
+          ["golOspite", /(gol|reti|punti).*(osp|trasf|fuori)|(osp|trasf|fuori).*(gol|reti)/i],
+          ["marcCasa", /marcatori.*casa|casa.*marcatori/i],
+          ["marcOspite", /marcatori.*(osp|trasf|fuori)/i],
+          ["ammCasa", /ammon.*casa|gialli.*casa|cartellini.?gialli.*casa/i],
+          ["ammOspite", /ammon.*(osp|trasf|fuori)|gialli.*(osp|trasf|fuori)/i],
+          ["espCasa", /espuls.*casa|rossi.*casa/i],
+          ["espOspite", /espuls.*(osp|trasf|fuori)|rossi.*(osp|trasf|fuori)/i],
+          ["data", /^data$|^giorno|giornata/i],
+          ["casa", /^casa$|squadra.?casa|^home$/i],
+          ["ospite", /^(ospite|trasferta|away)$|squadra.?(osp|trasf)/i],
+        ];
+        let hIdx = -1, cols = {};
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || []; const c = {};
+          for (let j = 0; j < r.length; j++) {
+            const v = r[j];
+            if (typeof v !== "string") continue;
+            const s = v.trim();
+            for (const [key, re] of tests) { if (c[key] == null && re.test(s)) { c[key] = j; break; } }
+          }
+          if (c.casa != null && c.ospite != null) { hIdx = i; cols = c; break; }
+        }
+        if (hIdx < 0) { alert('Non ho trovato le colonne "Casa" e "Ospite/Trasferta" in "' + sn + '".\nScarica il template dal pulsante in basso per il formato corretto.'); return; }
+
+        const byName = {}; teams.forEach(t => { byName[norm(t.name)] = t; });
+        const num = (v) => (v != null && v !== "" && !isNaN(Number(v))) ? Number(v) : null;
+        const matched = []; const unmatchedTeams = new Set(); const noMatch = [];
+        for (let i = hIdx + 1; i < rows.length; i++) {
+          const r = rows[i] || [];
+          const cell = (k) => cols[k] != null ? r[cols[k]] : null;
+          const homeName = cell("casa") != null ? String(cell("casa")).trim() : "";
+          const awayName = cell("ospite") != null ? String(cell("ospite")).trim() : "";
+          if (!homeName && !awayName) continue;
+          if (/^totale/i.test(homeName)) break;
+          const ht = byName[norm(homeName)], at = byName[norm(awayName)];
+          if (homeName && !ht) unmatchedTeams.add(homeName);
+          if (awayName && !at) unmatchedTeams.add(awayName);
+          if (!ht || !at) { noMatch.push({ homeName, awayName, reason: "squadra" }); continue; }
+          // trova la partita in calendario (orientamento esatto, poi invertito)
+          let mt = matches.find(m => m.home === ht.id && m.away === at.id);
+          let reversed = false;
+          if (!mt) { mt = matches.find(m => m.home === at.id && m.away === ht.id); if (mt) reversed = true; }
+          if (!mt) { noMatch.push({ homeName, awayName, reason: "partita" }); continue; }
+
+          const marcCasa = parseNameList(cell("marcCasa"));
+          const marcOspite = parseNameList(cell("marcOspite"));
+          let hs = num(cell("golCasa")); let as = num(cell("golOspite"));
+          if (hs == null && (marcCasa.length || marcOspite.length)) hs = marcCasa.length;
+          if (as == null && (marcCasa.length || marcOspite.length)) as = marcOspite.length;
+          const ammCasa = parseNameList(cell("ammCasa"));
+          const ammOspite = parseNameList(cell("ammOspite"));
+          const espCasa = parseNameList(cell("espCasa"));
+          const espOspite = parseNameList(cell("espOspite"));
+
+          // costruisco eventi (teamId reali = ht/at; se reversed, gol "casa file" restano di ht)
+          const events = [];
+          const push = (teamId, names, type) => names.forEach(nm => { const p = resolvePlayer(teamId, nm); events.push({ id: uid(), playerId: p.id, playerName: p.name, teamId, type, note: "import" }); });
+          push(ht.id, marcCasa, "goal"); push(at.id, marcOspite, "goal");
+          push(ht.id, ammCasa, "yellow"); push(at.id, ammOspite, "yellow");
+          push(ht.id, espCasa, "red"); push(at.id, espOspite, "red");
+
+          // se la partita in calendario è invertita, i punteggi vanno mappati sul suo orientamento
+          const matchHS = reversed ? as : hs;
+          const matchAS = reversed ? hs : as;
+          matched.push({
+            matchId: mt.id, homeName: ht.name, awayName: at.name, reversed,
+            homeScore: matchHS, awayScore: matchAS, events,
+            evCount: events.length,
+            goalStr: (marcCasa.length ? homeName + ": " + marcCasa.length + " gol " : "") + (marcOspite.length ? awayName + ": " + marcOspite.length + " gol" : ""),
+          });
+        }
+        if (!matched.length && !noMatch.length) { alert("Nessuna partita trovata nel foglio."); return; }
+        setPreview({ matched, unmatchedTeams: [...unmatchedTeams], noMatch, sheet: sn });
+      } catch (err) { alert("Errore lettura file: " + err.message); }
+    };
+    reader.onerror = () => alert("Impossibile leggere il file");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyImport = () => {
+    if (!preview || !preview.matched.length) return;
+    const byId = {}; preview.matched.forEach(m => { byId[m.matchId] = m; });
+    const updated = matches.map(m => {
+      const hit = byId[m.id];
+      if (!hit) return m;
+      const played = hit.homeScore != null && hit.awayScore != null;
+      return Object.assign({}, m, {
+        homeScore: hit.homeScore != null ? hit.homeScore : m.homeScore,
+        awayScore: hit.awayScore != null ? hit.awayScore : m.awayScore,
+        played: played || m.played,
+        events: hit.events, // gli eventi importati sostituiscono quelli esistenti sulla partita
+      });
+    });
+    setMatches(updated);
+    showToast && showToast(preview.matched.length + " partite aggiornate dall'import");
+    onClose();
+  };
+
+  const downloadTemplate = () => {
+    try {
+      const t0 = teams[0] ? teams[0].name : "Squadra A";
+      const t1 = teams[1] ? teams[1].name : "Squadra B";
+      const p0 = (teams[0] && teams[0].players && teams[0].players[0]) ? teams[0].players[0].name : "Rossi";
+      const p1 = (teams[1] && teams[1].players && teams[1].players[0]) ? teams[1].players[0].name : "Bianchi";
+      const header = ["Data", "Casa", "Ospite", "Gol Casa", "Gol Ospite", "Marcatori Casa", "Marcatori Ospite", "Ammoniti Casa", "Ammoniti Ospite", "Espulsi Casa", "Espulsi Ospite"];
+      const example = ["2026-06-22", t0, t1, 3, 1, p0 + " x2, Verdi", p1, "Neri", "", "", ""];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([header, example]);
+      ws["!cols"] = header.map((h, i) => ({ wch: i <= 2 ? 18 : (i <= 4 ? 10 : 22) }));
+      XLSX.utils.book_append_sheet(wb, ws, "Risultati");
+      XLSX.writeFile(wb, "TdP-Template-Risultati.xlsx");
+    } catch (e) { alert("Errore template: " + e.message); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: 640}}>
+        <div className="modal-head">
+          <h2>Importa risultati &amp; statistiche</h2>
+          <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
+            Categoria: {category === "junior" ? "Junior" : "Torneo principale"}. Aggiorna punteggi, marcatori, ammoniti ed espulsi delle partite già presenti in calendario.
+          </div>
+        </div>
+
+        {!preview ? (
+          <>
+            <div className="import-drop" style={{textAlign:"center", padding:"22px", border:"2px dashed var(--ink)", borderRadius:6, background:"var(--cream-soft)", marginBottom:14}}>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleFile} style={{display:"none"}} />
+              <p style={{marginBottom:12}}>Carica il foglio Excel con i risultati (una riga per partita).</p>
+              <button className="btn btn-primary" onClick={() => fileRef.current && fileRef.current.click()}>Scegli file Excel</button>
+            </div>
+            <div style={{fontSize:13, color:"var(--ink-soft)", lineHeight:1.6}}>
+              <b>Colonne riconosciute:</b> Data · Casa · Ospite · Gol Casa · Gol Ospite · Marcatori Casa/Ospite · Ammoniti Casa/Ospite · Espulsi Casa/Ospite.<br/>
+              I marcatori sono nomi separati da virgola; <span className="mono">Rossi x2</span> o <span className="mono">Rossi (2)</span> = doppietta. Le squadre e i giocatori vengono abbinati per nome a quelli già inseriti.
+            </div>
+            <div className="modal-actions" style={{marginTop:18}}>
+              <button className="btn" onClick={downloadTemplate}>⬇ Scarica template</button>
+              <button className="btn" onClick={onClose}>Chiudi</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{display:"flex", gap:10, flexWrap:"wrap", marginBottom:12}}>
+              <span className="badge" style={{background:"var(--green-field)", color:"var(--cream)"}}>{preview.matched.length} partite abbinate</span>
+              {preview.noMatch.length > 0 && <span className="badge" style={{background:"var(--terracotta)", color:"var(--cream)"}}>{preview.noMatch.length} non abbinate</span>}
+              {preview.unmatchedTeams.length > 0 && <span className="badge" style={{background:"var(--gold-deep)", color:"var(--cream)"}}>{preview.unmatchedTeams.length} squadre sconosciute</span>}
+            </div>
+            <div className="import-preview">
+              {preview.matched.map((m, i) => (
+                <div key={i} className="import-team-block">
+                  <h4>{m.homeName} {m.homeScore != null ? m.homeScore : "–"} : {m.awayScore != null ? m.awayScore : "–"} {m.awayName}{m.reversed ? " ↺" : ""}</h4>
+                  <div className="count">{m.evCount} eventi{m.goalStr ? " · " + m.goalStr : ""}</div>
+                </div>
+              ))}
+              {preview.noMatch.length > 0 && (
+                <div className="import-team-block" style={{borderLeftColor:"var(--terracotta-dark)"}}>
+                  <h4>Non abbinate ({preview.noMatch.length})</h4>
+                  <ul>
+                    {preview.noMatch.slice(0, 12).map((r, i) => (
+                      <li key={i}>{r.homeName} vs {r.awayName} — {r.reason === "squadra" ? "squadra non trovata" : "partita non in calendario"}</li>
+                    ))}
+                    {preview.noMatch.length > 12 && <li style={{fontStyle:"italic", opacity:0.7}}>…e altre {preview.noMatch.length - 12}</li>}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {preview.unmatchedTeams.length > 0 && (
+              <p style={{fontSize:12, color:"var(--terracotta-dark)", marginBottom:8}}>
+                Squadre non riconosciute (controlla il nome): {preview.unmatchedTeams.join(", ")}
+              </p>
+            )}
+            <p style={{fontSize:12, color:"var(--ink-soft)", fontStyle:"italic"}}>
+              Gli eventi importati sostituiscono marcatori/cartellini già presenti sulle partite abbinate. Il simbolo ↺ indica una partita che in calendario ha casa/ospite invertiti (punteggi adattati).
+            </p>
+            <div className="modal-actions" style={{marginTop:14}}>
+              <button className="btn" onClick={() => setPreview(null)}>← Indietro</button>
+              <button className="btn btn-gold" onClick={applyImport} disabled={!preview.matched.length}>Conferma import ({preview.matched.length})</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -4896,7 +5195,9 @@ function CassaView({ db }) {
 // =================================================================
 // SHIFTS / TURNI STAFF
 // =================================================================
-function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, insurance, setInsurance, shirts, setShirts, mansioni, setMansioni, showToast }) {
+function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShifts, staffDates, setStaffDates, insurance, setInsurance, shirts, setShirts, mansioni, setMansioni, showToast }) {
+  // Fallback difensivo: se Firebase non ha ancora popolato staffDates, uso il default.
+  if (!Array.isArray(staffDates) || staffDates.length === 0) staffDates = defaultStaffDates();
   const [subTab, setSubTab] = useState("turni"); // "turni" | "extra"
   const [addingStaff, setAddingStaff] = useState(false);
   const [newName, setNewName] = useState("");
@@ -5036,11 +5337,11 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     const validPosIds = new Set(newPositions.map(p => p.id));
     const newShifts = {};
     let assigned = 0;
-    STAFF_DATES.forEach(d => {
+    staffDates.forEach(d => {
       newStaff.forEach(s => {
         if (!s.preferredPosition || !validPosIds.has(s.preferredPosition)) return;
-        if (!(s.availability && s.availability[d.iso])) return;
-        const key = shiftKey(d.iso, s.preferredPosition);
+        if (!(s.availability && s.availability[dateKey(d)])) return;
+        const key = shiftKey(dateKey(d), s.preferredPosition);
         if (!newShifts[key]) newShifts[key] = [];
         newShifts[key].push(s.id); assigned++;
       });
@@ -5065,9 +5366,9 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       if (filtered.length) newShifts[k] = filtered;
     });
     if (posId && person) {
-      STAFF_DATES.forEach(d => {
-        if (!(person.availability && person.availability[d.iso])) return;
-        const key = shiftKey(d.iso, posId);
+      staffDates.forEach(d => {
+        if (!(person.availability && person.availability[dateKey(d)])) return;
+        const key = shiftKey(dateKey(d), posId);
         newShifts[key] = [...(newShifts[key] || []), id];
       });
     }
@@ -5089,7 +5390,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       if (s.id !== id) return s;
       if (!value) return Object.assign({}, s, { availability: {} });
       const av = {};
-      STAFF_DATES.forEach(d => { av[d.iso] = true; });
+      staffDates.forEach(d => { av[dateKey(d)] = true; });
       return Object.assign({}, s, { availability: av });
     }));
   };
@@ -5102,19 +5403,163 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       return Object.assign({}, s, { availability: av });
     }));
   };
+
+  // ============================================================
+  // GESTIONE SERATE (modifica / elimina / raggruppa / separa)
+  // ============================================================
+  const [selectedDates, setSelectedDates] = useState(() => new Set()); // per il raggruppamento
+  const [newDateISO, setNewDateISO] = useState("");
+  const [newDateLabel, setNewDateLabel] = useState("");
+
+  const toggleDateSelect = (key) => setSelectedDates(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  // Quante presenze/turni ci sono su una serata (per l'avviso in cancellazione)
+  const dateHasData = (key) => {
+    const inShifts = Object.entries(shifts).some(([k, v]) => k.startsWith(key + "::") && normShiftArr(v).length > 0);
+    const inAvail = staff.some(s => s.availability && s.availability[key]);
+    return inShifts || inAvail;
+  };
+
+  const deleteDate = (key) => {
+    const d = staffDates.find(x => dateKey(x) === key);
+    if (!d) return;
+    if (staffDates.length <= 1) { alert("Deve restare almeno una serata."); return; }
+    const warn = dateHasData(key) ? "\n\nATTENZIONE: i turni e le presenze associati a questa serata verranno rimossi." : "";
+    if (!confirm("Eliminare la serata «" + d.label + "»?" + warn)) return;
+    // rimuovo la voce
+    setStaffDates(staffDates.filter(x => dateKey(x) !== key));
+    // pulisco i turni
+    const newShifts = {};
+    Object.entries(shifts).forEach(([k, v]) => { if (!k.startsWith(key + "::")) newShifts[k] = v; });
+    setShifts(newShifts);
+    // pulisco le presenze
+    if (staff.some(s => s.availability && s.availability[key])) {
+      setStaff(staff.map(s => {
+        if (!(s.availability && s.availability[key])) return s;
+        const av = Object.assign({}, s.availability); delete av[key];
+        return Object.assign({}, s, { availability: av });
+      }));
+    }
+    setSelectedDates(prev => { const n = new Set(prev); n.delete(key); return n; });
+    showToast("Serata eliminata");
+  };
+
+  // Raggruppa le serate selezionate in un'unica voce (colonna/riga condivisa).
+  // Fonde turni (unione delle persone per area) e presenze (disponibile se lo era in almeno una).
+  const groupSelected = () => {
+    const keys = staffDates.map(dateKey).filter(k => selectedDates.has(k)); // in ordine di lista
+    if (keys.length < 2) { alert("Seleziona almeno 2 serate da raggruppare."); return; }
+    const entries = keys.map(k => staffDates.find(d => dateKey(d) === k)).filter(Boolean);
+    // membri (espando eventuali gruppi già esistenti)
+    const members = [];
+    entries.forEach(e => {
+      if (e.group && e.members) members.push(...e.members);
+      else members.push({ iso: e.iso || (typeof e.key === "string" && /^\d{4}-\d{2}-\d{2}/.test(e.key) ? e.key : e.key), label: e.label, phase: e.phase });
+    });
+    const gkey = "grp_" + uid();
+    const shortLabel = (l) => (l || "").replace(/^[A-Za-zàèìòù]+\s/, "");
+    const label = members.map(m => shortLabel(m.label)).join(" + ");
+    const phases = [...new Set(members.map(m => m.phase).filter(Boolean))];
+    const phase = phases.length === 1 ? phases[0] : "Misto";
+    const group = { key: gkey, group: true, label, phase, members };
+    // nuova lista: sostituisco il primo elemento selezionato col gruppo, rimuovo gli altri
+    const firstIdx = staffDates.findIndex(d => dateKey(d) === keys[0]);
+    const keySet = new Set(keys);
+    const nextDates = [];
+    staffDates.forEach((d, i) => {
+      if (i === firstIdx) nextDates.push(group);
+      else if (!keySet.has(dateKey(d))) nextDates.push(d);
+    });
+    // fondo i turni: unione delle persone per ogni area fra i membri
+    const newShifts = {};
+    const posUnion = {};
+    Object.entries(shifts).forEach(([k, v]) => {
+      const sep = k.indexOf("::");
+      const ik = k.slice(0, sep), pid = k.slice(sep + 2);
+      if (keySet.has(ik)) {
+        if (!posUnion[pid]) posUnion[pid] = new Set();
+        normShiftArr(v).forEach(id => posUnion[pid].add(id));
+      } else newShifts[k] = v;
+    });
+    Object.entries(posUnion).forEach(([pid, set]) => { if (set.size) newShifts[gkey + "::" + pid] = [...set]; });
+    // fondo le presenze
+    const newStaff = staff.map(s => {
+      const av = Object.assign({}, s.availability || {});
+      let any = false;
+      keys.forEach(k => { if (av[k]) { any = true; delete av[k]; } });
+      if (any) av[gkey] = true;
+      return Object.assign({}, s, { availability: av });
+    });
+    setStaffDates(nextDates);
+    setShifts(newShifts);
+    setStaff(newStaff);
+    setSelectedDates(new Set());
+    showToast(keys.length + " serate raggruppate");
+  };
+
+  // Separa un gruppo nelle serate singole di partenza (copia turni/presenze del gruppo su ogni membro)
+  const ungroupDate = (gkey) => {
+    const g = staffDates.find(d => dateKey(d) === gkey && d.group);
+    if (!g || !g.members) return;
+    const singles = g.members.map(m => ({ key: m.iso, iso: m.iso, label: m.label, phase: m.phase }));
+    const idx = staffDates.findIndex(d => dateKey(d) === gkey);
+    const nextDates = staffDates.slice();
+    nextDates.splice(idx, 1, ...singles);
+    // turni: replico le assegnazioni del gruppo su ogni serata membro
+    const newShifts = {};
+    Object.entries(shifts).forEach(([k, v]) => {
+      const sep = k.indexOf("::");
+      const ik = k.slice(0, sep), pid = k.slice(sep + 2);
+      if (ik === gkey) singles.forEach(sg => { newShifts[sg.key + "::" + pid] = normShiftArr(v).slice(); });
+      else newShifts[k] = v;
+    });
+    // presenze: se disponibile sul gruppo → disponibile su ogni membro
+    const newStaff = staff.map(s => {
+      const av = Object.assign({}, s.availability || {});
+      if (av[gkey]) { delete av[gkey]; singles.forEach(sg => { av[sg.key] = true; }); }
+      return Object.assign({}, s, { availability: av });
+    });
+    setStaffDates(nextDates);
+    setShifts(newShifts);
+    setStaff(newStaff);
+    showToast("Gruppo separato");
+  };
+
+  const addDate = () => {
+    if (!newDateISO) { alert("Scegli una data."); return; }
+    if (staffDates.some(d => dateKey(d) === newDateISO)) { alert("Questa serata è già presente."); return; }
+    const label = newDateLabel.trim() || labelFromISO(newDateISO);
+    const entry = { key: newDateISO, iso: newDateISO, label, phase: "Extra" };
+    const next = [...staffDates, entry].sort((a, b) => (entryFirstISO(a) || "").localeCompare(entryFirstISO(b) || ""));
+    setStaffDates(next);
+    setNewDateISO(""); setNewDateLabel("");
+    showToast("Serata aggiunta");
+  };
+
+  const resetDates = () => {
+    if (!confirm("Ripristinare l'elenco serate ufficiale 2026?\n\nLe serate personalizzate (aggiunte/raggruppate/eliminate) verranno perse. Turni e presenze già inseriti sulle date ufficiali restano.")) return;
+    setStaffDates(defaultStaffDates());
+    setSelectedDates(new Set());
+    showToast("Serate ripristinate");
+  };
+
   const exportShiftsExcel = () => {
     try {
       const aoa = [["Serata", ...positions.map(p => p.name)]];
-      STAFF_DATES.forEach(d => {
+      staffDates.forEach(d => {
         const row = [d.label];
         positions.forEach(p => {
-          const names = getAssigned(d.iso, p.id).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
+          const names = getAssigned(dateKey(d), p.id).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
           row.push(names.join(", "));
         });
         aoa.push(row);
       });
       const tot = ["Totale per area"];
-      positions.forEach(p => { tot.push(STAFF_DATES.reduce((a, d) => a + getAssigned(d.iso, p.id).length, 0)); });
+      positions.forEach(p => { tot.push(staffDates.reduce((a, d) => a + getAssigned(dateKey(d), p.id).length, 0)); });
       aoa.push(tot);
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -5135,10 +5580,10 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       doc.text("Generato il " + new Date().toLocaleDateString("it-IT") + " · Futsal Fabbrico ASD", 14, 22);
       doc.setTextColor(0);
       const head = [["Serata", ...positions.map(p => p.name)]];
-      const body = STAFF_DATES.map(d => {
+      const body = staffDates.map(d => {
         const row = [d.label];
         positions.forEach(p => {
-          const names = getAssigned(d.iso, p.id).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
+          const names = getAssigned(dateKey(d), p.id).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
           row.push(names.join("\n"));
         });
         return row;
@@ -5168,12 +5613,12 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     let count = 0;
     const skippedNoAvail = [];
     assignable.forEach(s => {
-      const availDates = STAFF_DATES.filter(d => isAvailable(s, d.iso));
+      const availDates = staffDates.filter(d => isAvailable(s, dateKey(d)));
       if (availDates.length === 0) { skippedNoAvail.push(s.name); return; }
       availDates.forEach(d => {
         // se è già in un'altra area quella serata, non la duplico
-        if (positions.some(p => p.id !== s.preferredPosition && getAssigned(d.iso, p.id).includes(s.id))) return;
-        const key = shiftKey(d.iso, s.preferredPosition);
+        if (positions.some(p => p.id !== s.preferredPosition && getAssigned(dateKey(d), p.id).includes(s.id))) return;
+        const key = shiftKey(dateKey(d), s.preferredPosition);
         const v = newShifts[key];
         const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
         if (!arr.includes(s.id)) { newShifts[key] = [...arr, s.id]; count++; }
@@ -5313,7 +5758,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
     const arr = typeof v === "string" ? [v] : (Array.isArray(v) ? v : []);
     return arr.length > 0;
   }).length;
-  const totalCells = STAFF_DATES.length * positions.length;
+  const totalCells = staffDates.length * positions.length;
 
   // Lookup map per nome staff
   const staffById = useMemo(() => {
@@ -5426,6 +5871,55 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
         )}
       </div>
 
+      {/* PANNELLO SERATE */}
+      <div className="shifts-panel">
+        <div className="shifts-panel-head">
+          <h3>Serate ({staffDates.length})</h3>
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            {selectedDates.size >= 2 && (
+              <button className="btn btn-sm btn-primary" onClick={groupSelected} title="Unisci le serate selezionate in un'unica riga/colonna">⧉ Raggruppa selezionate ({selectedDates.size})</button>
+            )}
+            {selectedDates.size > 0 && (
+              <button className="btn btn-sm" onClick={() => setSelectedDates(new Set())}>Annulla selezione</button>
+            )}
+            <button className="btn btn-sm btn-danger" onClick={resetDates} title="Ripristina l'elenco serate ufficiale 2026">↺ Ripristina</button>
+          </div>
+        </div>
+        <p style={{fontSize:13, color:"var(--ink-soft)", marginBottom:12, fontStyle:"italic"}}>
+          Spunta due o più serate e premi <b>Raggruppa</b> per pianificarle come una sola (i turni e le presenze già inseriti vengono uniti). Un gruppo resta unito finché non premi <b>Separa</b>. Puoi <b>eliminare</b> una serata o <b>aggiungerne</b> una nuova (es. allestimento).
+        </p>
+        <div className="dates-list">
+          {staffDates.map(d => {
+            const k = dateKey(d);
+            const sel = selectedDates.has(k);
+            return (
+              <div key={k} className={"date-manage-chip " + (d.group ? "grp " : "") + (sel ? "sel" : "")}>
+                <label className="dmc-main" title={d.group ? "Gruppo di " + d.members.length + " serate" : d.phase}>
+                  <input type="checkbox" checked={sel} onChange={() => toggleDateSelect(k)} />
+                  <span className="dmc-label">{d.group ? "⧉ " : ""}{d.label}</span>
+                  <span className="dmc-phase">{d.phase}</span>
+                </label>
+                <span className="dmc-actions">
+                  {d.group && <button className="dmc-split" onClick={() => ungroupDate(k)} title="Separa il gruppo">separa</button>}
+                  <button className="dmc-del" onClick={() => deleteDate(k)} title="Elimina serata">✕</button>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="date-add-row">
+          <div>
+            <label>Nuova serata</label>
+            <input type="date" value={newDateISO} onChange={e => setNewDateISO(e.target.value)} />
+          </div>
+          <div>
+            <label>Etichetta (opzionale)</label>
+            <input value={newDateLabel} onChange={e => setNewDateLabel(e.target.value)} placeholder="Es. Allestimento" />
+          </div>
+          <button className="btn btn-gold" onClick={addDate}>+ Aggiungi</button>
+        </div>
+      </div>
+
       {/* PANNELLO POSIZIONI */}
       <div className="shifts-panel">
         <div className="shifts-panel-head">
@@ -5474,15 +5968,15 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                 <tr>
                   <th className="m-name">Persona</th>
                   <th className="m-tot">Tot</th>
-                  {STAFF_DATES.map(d => (
-                    <th key={d.iso} className="m-date clickable" title={"Attiva/azzera per tutti · " + d.label} onClick={() => toggleDateForAll(d.iso)}>{d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}</th>
+                  {staffDates.map(d => (
+                    <th key={dateKey(d)} className="m-date clickable" title={"Attiva/azzera per tutti · " + d.label} onClick={() => toggleDateForAll(dateKey(d))}>{d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}</th>
                   ))}
                   <th className="m-area">Area</th>
                 </tr>
               </thead>
               <tbody>
                 {staff.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
-                  const cnt = STAFF_DATES.filter(d => isAvailable(s, d.iso)).length;
+                  const cnt = staffDates.filter(d => isAvailable(s, dateKey(d))).length;
                   return (
                     <tr key={s.id}>
                       <td className="m-name">
@@ -5495,10 +5989,10 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                         </div>
                       </td>
                       <td className="m-tot"><span className={"m-badge " + (cnt === 0 ? "zero" : "")}>{cnt}</span></td>
-                      {STAFF_DATES.map(d => {
-                        const yes = isAvailable(s, d.iso);
+                      {staffDates.map(d => {
+                        const yes = isAvailable(s, dateKey(d));
                         return (
-                          <td key={d.iso} className={"m-cell clickable " + (yes ? "yes" : "no")} title={(yes ? "Presente" : "Assente") + " · " + d.label + " — clicca per cambiare"} onClick={() => toggleAvailability(s.id, d.iso)}>{yes ? "✓" : ""}</td>
+                          <td key={dateKey(d)} className={"m-cell clickable " + (yes ? "yes" : "no")} title={(yes ? "Presente" : "Assente") + " · " + d.label + " — clicca per cambiare"} onClick={() => toggleAvailability(s.id, dateKey(d))}>{yes ? "✓" : ""}</td>
                         );
                       })}
                       <td className="m-area">
@@ -5514,10 +6008,10 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               <tfoot>
                 <tr>
                   <th className="m-name">Persone per giorno</th>
-                  <th className="m-tot"><span className="m-badge">{staff.reduce((a, s) => a + STAFF_DATES.filter(d => isAvailable(s, d.iso)).length, 0)}</span></th>
-                  {STAFF_DATES.map(d => {
-                    const c = staff.filter(s => isAvailable(s, d.iso)).length;
-                    return <th key={d.iso} className={c === 0 ? "zero" : ""} title={c + " disponibili · " + d.label}>{c}</th>;
+                  <th className="m-tot"><span className="m-badge">{staff.reduce((a, s) => a + staffDates.filter(d => isAvailable(s, dateKey(d))).length, 0)}</span></th>
+                  {staffDates.map(d => {
+                    const c = staff.filter(s => isAvailable(s, dateKey(d))).length;
+                    return <th key={dateKey(d)} className={c === 0 ? "zero" : ""} title={c + " disponibili · " + d.label}>{c}</th>;
                   })}
                   <th className="m-area"></th>
                 </tr>
@@ -5528,7 +6022,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           {/* VISTA MOBILE — schede per persona */}
           <div className="mapping-cards">
             {staff.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
-              const cnt = STAFF_DATES.filter(d => isAvailable(s, d.iso)).length;
+              const cnt = staffDates.filter(d => isAvailable(s, dateKey(d))).length;
               return (
                 <div key={s.id} className="map-card">
                   <div className="map-card-head">
@@ -5543,14 +6037,14 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                     </select>
                   </div>
                   <div className="map-card-dates">
-                    {STAFF_DATES.map(d => {
-                      const yes = isAvailable(s, d.iso);
+                    {staffDates.map(d => {
+                      const yes = isAvailable(s, dateKey(d));
                       const short = d.label.replace(/^[A-Za-zàèìòù]+\s/, "");
                       return (
                         <div
-                          key={d.iso}
+                          key={dateKey(d)}
                           className={"map-date-chip " + (yes ? "on" : "off")}
-                          onClick={() => toggleAvailability(s.id, d.iso)}
+                          onClick={() => toggleAvailability(s.id, dateKey(d))}
                         >
                           <span className="mdc-day">{short}</span>
                           <span className="mdc-mark">{yes ? "✓" : "○"}</span>
@@ -5589,17 +6083,17 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               </tr>
             </thead>
             <tbody>
-              {STAFF_DATES.map(d => {
+              {staffDates.map(d => {
                 // Totale per riga (questa serata)
-                const rowTotal = positions.reduce((acc, p) => acc + getAssigned(d.iso, p.id).length, 0);
+                const rowTotal = positions.reduce((acc, p) => acc + getAssigned(dateKey(d), p.id).length, 0);
                 return (
-                  <tr key={d.iso}>
+                  <tr key={dateKey(d)}>
                     <td className="date-cell">
                       <div className="date-label">{d.label}</div>
                       <span className={"date-phase " + (d.phase === "Finali" ? "finali" : "")}>{d.phase}</span>
                     </td>
                     {positions.map(p => {
-                      const assigned = getAssigned(d.iso, p.id);
+                      const assigned = getAssigned(dateKey(d), p.id);
                       return (
                         <td key={p.id} className={"shift-cell " + (assigned.length > 0 ? "assigned" : "empty")}>
                           <div className="assigned-stack">
@@ -5609,13 +6103,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                               return (
                                 <span key={sid} className="assigned-pill">
                                   {person.name}
-                                  <button onClick={() => removeAssignment(d.iso, p.id, sid)} title="Rimuovi">✕</button>
+                                  <button onClick={() => removeAssignment(dateKey(d), p.id, sid)} title="Rimuovi">✕</button>
                                 </span>
                               );
                             })}
                             <button
                               className="assign-add-btn"
-                              onClick={() => setPicker({ iso: d.iso, posId: p.id })}
+                              onClick={() => setPicker({ iso: dateKey(d), posId: p.id })}
                               title="Aggiungi persona"
                             >
                               +
@@ -5632,7 +6126,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
               <tr className="totals-row">
                 <td className="date-cell totals-label">Totale per area</td>
                 {positions.map(p => {
-                  const colTotal = STAFF_DATES.reduce((acc, d) => acc + getAssigned(d.iso, p.id).length, 0);
+                  const colTotal = staffDates.reduce((acc, d) => acc + getAssigned(dateKey(d), p.id).length, 0);
                   return (
                     <td key={p.id} className={"total-cell " + (colTotal === 0 ? "zero" : "")}>{colTotal}</td>
                   );
@@ -5650,18 +6144,18 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
           <button
             className="shifts-cards-toggleall"
             onClick={() => {
-              const allOpen = STAFF_DATES.every(d => openShiftDays.has(d.iso));
-              setOpenShiftDays(allOpen ? new Set() : new Set(STAFF_DATES.map(d => d.iso)));
+              const allOpen = staffDates.every(d => openShiftDays.has(dateKey(d)));
+              setOpenShiftDays(allOpen ? new Set() : new Set(staffDates.map(d => dateKey(d))));
             }}
           >
-            {STAFF_DATES.every(d => openShiftDays.has(d.iso)) ? "▴ Comprimi tutte le serate" : "▾ Espandi tutte le serate"}
+            {staffDates.every(d => openShiftDays.has(dateKey(d))) ? "▴ Comprimi tutte le serate" : "▾ Espandi tutte le serate"}
           </button>
-          {STAFF_DATES.map(d => {
-            const open = openShiftDays.has(d.iso);
-            const rowTotal = positions.reduce((acc, p) => acc + getAssigned(d.iso, p.id).length, 0);
+          {staffDates.map(d => {
+            const open = openShiftDays.has(dateKey(d));
+            const rowTotal = positions.reduce((acc, p) => acc + getAssigned(dateKey(d), p.id).length, 0);
             return (
-              <div key={d.iso} className={"shift-day-card " + (open ? "open" : "")}>
-                <div className="shift-day-head" onClick={() => toggleShiftDay(d.iso)}>
+              <div key={dateKey(d)} className={"shift-day-card " + (open ? "open" : "")}>
+                <div className="shift-day-head" onClick={() => toggleShiftDay(dateKey(d))}>
                   <span className="sdc-caret">{open ? "▾" : "▸"}</span>
                   <span className="sdc-date">{d.label}</span>
                   <span className={"sdc-phase " + (d.phase === "Finali" ? "finali" : "")}>{d.phase}</span>
@@ -5674,7 +6168,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                         Nessuna posizione definita. Aggiungile nel pannello “Posizioni”.
                       </p>
                     ) : positions.map(p => {
-                      const assigned = getAssigned(d.iso, p.id);
+                      const assigned = getAssigned(dateKey(d), p.id);
                       return (
                         <div key={p.id} className="shift-pos-row">
                           <span className="shift-pos-name" style={{background: p.color}}>{p.name}</span>
@@ -5685,13 +6179,13 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
                               return (
                                 <span key={sid} className="assigned-pill">
                                   {person.name}
-                                  <button onClick={() => removeAssignment(d.iso, p.id, sid)} title="Rimuovi">✕</button>
+                                  <button onClick={() => removeAssignment(dateKey(d), p.id, sid)} title="Rimuovi">✕</button>
                                 </span>
                               );
                             })}
                             <button
                               className="assign-add-btn"
-                              onClick={() => setPicker({ iso: d.iso, posId: p.id })}
+                              onClick={() => setPicker({ iso: dateKey(d), posId: p.id })}
                               title="Aggiungi persona"
                             >+</button>
                           </div>
@@ -5733,7 +6227,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
             <div className="modal-head">
               <h2>Aggiungi a {positions.find(p => p.id === picker.posId) ? positions.find(p => p.id === picker.posId).name : ""}</h2>
               <div className="subtitle" style={{fontStyle:"italic", color:"var(--ink-soft)", fontSize:13, marginTop:4}}>
-                {STAFF_DATES.find(d => d.iso === picker.iso) ? STAFF_DATES.find(d => d.iso === picker.iso).label : ""}
+                {staffDates.find(d => dateKey(d) === picker.iso) ? staffDates.find(d => dateKey(d) === picker.iso).label : ""}
                 {pickerCurrent.length > 0 && " · " + pickerCurrent.length + " già assegnati"}
               </div>
             </div>
@@ -5846,7 +6340,7 @@ function ShiftsView({ staff, setStaff, positions, setPositions, shifts, setShift
       )}
 
       {subTab === "mansioni" && (
-        <MansioniView staff={staff} positions={positions} shifts={shifts} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />
+        <MansioniView staff={staff} positions={positions} shifts={shifts} staffDates={staffDates} mansioni={mansioni} setMansioni={setMansioni} showToast={showToast} />
       )}
 
       {subTab === "extra" && (
@@ -5868,7 +6362,8 @@ const DEFAULT_MANSIONI = {
   "social": [["Interviste",1],["Storie Instagram/FB",1],["Fotografo/a",1],["Telecronaca",1],["Musica/Video",1],["Jolly",1]],
 };
 
-function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToast }) {
+function MansioniView({ staff, positions, shifts, staffDates, mansioni, setMansioni, showToast }) {
+  if (!Array.isArray(staffDates) || staffDates.length === 0) staffDates = defaultStaffDates();
   const staffById = useMemo(() => { const m = {}; staff.forEach(s => m[s.id] = s); return m; }, [staff]);
 
   // Date del torneo presenti nell'ultima tabella turni (con almeno un'assegnazione)
@@ -5878,12 +6373,12 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
       const arr = !v ? [] : (typeof v === "string" ? [v] : (Array.isArray(v) ? v : []));
       if (arr.length) isos.add(k.split("::")[0]);
     });
-    return STAFF_DATES.filter(d => isos.has(d.iso));
+    return staffDates.filter(d => isos.has(dateKey(d)));
   }, [shifts]);
 
   const [selDate, setSelDate] = useState("");
   useEffect(() => {
-    if (activeDates.length && !activeDates.some(d => d.iso === selDate)) setSelDate(activeDates[0].iso);
+    if (activeDates.length && !activeDates.some(d => dateKey(d) === selDate)) setSelDate(dateKey(activeDates[0]));
     if (!activeDates.length && selDate) setSelDate("");
   }, [activeDates]);
 
@@ -5973,7 +6468,7 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
         const body = [];
         positions.forEach(p => {
           rowsOf(p.id).forEach(r => {
-            const names = peopleOnDate(r, d.iso).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
+            const names = peopleOnDate(r, dateKey(d)).map(sid => staffById[sid] ? staffById[sid].name : null).filter(Boolean);
             if (!(r.name || "").trim() && names.length === 0) return;
             body.push([p.name, r.name || "—", String(r.qty || 0), names.join(", ") || "—"]);
           });
@@ -5997,7 +6492,7 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
         y = doc.lastAutoTable.finalY + 8;
       });
       if (!any) { alert(single ? "Nessuna mansione assegnata per questa giornata." : "Nessuna mansione assegnata da esportare."); return; }
-      const suffix = single ? list[0].iso : new Date().toISOString().slice(0, 10);
+      const suffix = single ? dateKey(list[0]) : new Date().toISOString().slice(0, 10);
       doc.save("TdP-Mansioni-" + suffix + ".pdf");
       showToast(single ? "PDF giornata esportato" : "PDF mansioni esportato");
     } catch (e) { alert("Errore export PDF: " + e.message); }
@@ -6014,7 +6509,7 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
           <div className="subtitle">Assegna le mansioni per ogni giornata · le persone si pescano dai turni di quella serata</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-          {activeDates.length > 0 && selDate && <button className="btn btn-sm btn-gold" onClick={() => exportMansioniPDF(activeDates.filter(d => d.iso === selDate))} title="Esporta solo la giornata selezionata in PDF">📄 PDF giornata</button>}
+          {activeDates.length > 0 && selDate && <button className="btn btn-sm btn-gold" onClick={() => exportMansioniPDF(activeDates.filter(d => dateKey(d) === selDate))} title="Esporta solo la giornata selezionata in PDF">📄 PDF giornata</button>}
           {activeDates.length > 0 && <button className="btn btn-sm btn-gold" onClick={() => exportMansioniPDF(activeDates)} title="Esporta tutte le giornate in PDF">📄 PDF tutte</button>}
           <button className="btn btn-sm" onClick={resetDefaults} title="Ripristina l'elenco mansioni predefinito">↺ Predefinite</button>
         </div>
@@ -6031,7 +6526,7 @@ function MansioniView({ staff, positions, shifts, mansioni, setMansioni, showToa
         {/* FILTRO DATE */}
         <div className="date-filter">
           {activeDates.map(d => (
-            <button key={d.iso} className={"date-chip " + (selDate === d.iso ? "active" : "")} onClick={() => setSelDate(d.iso)}>
+            <button key={dateKey(d)} className={"date-chip " + (selDate === dateKey(d) ? "active" : "")} onClick={() => setSelDate(dateKey(d))}>
               {d.label.replace(/^[A-Za-zàèìòù]+\s/, "")}
             </button>
           ))}
