@@ -484,7 +484,18 @@
   .top-product-row .cat-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.08em; }
   .top-product-row .qty { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--green-field); }
   .top-product-row .qty-unit { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-soft); }
-  .top-product-row .revenue { font-family: 'Bebas Neue', sans-serif; font-size: 20px; min-width: 70px; text-align: right; color: var(--ink); }
+  .top-product-row .revenue { font-family: 'Bebas Neue', sans-serif; font-size: 20px; min-width: 92px; text-align: right; color: var(--ink); }
+  .prod-sort-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 20px; background: var(--cream-soft); border-bottom: 1.5px solid var(--ink); }
+  .prod-sort-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-right: 2px; }
+  .prod-sort-btn { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.06em; padding: 5px 11px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink-soft); border-radius: 3px; cursor: pointer; }
+  .prod-sort-btn:hover { background: var(--ink); color: var(--cream); }
+  .prod-sort-btn.active { background: var(--green-deep); color: var(--gold); border-color: var(--green-deep); }
+  .top-product-row.prod-total-row { background: var(--green-deep); border-top: 2px solid var(--ink); border-bottom: none; }
+  .top-product-row.prod-total-row .rank { font-size: 22px; color: var(--gold); }
+  .top-product-row.prod-total-row .name { color: var(--gold); font-size: 14px; letter-spacing: 0.04em; }
+  .top-product-row.prod-total-row .qty { color: var(--cream); }
+  .top-product-row.prod-total-row .qty-unit { color: rgba(244,234,213,0.7); }
+  .top-product-row.prod-total-row .revenue { color: var(--gold); }
 
   .receipts-list { padding: 0; max-height: 480px; overflow-y: auto; }
 
@@ -4553,6 +4564,7 @@ function CassaView({ db }) {
   const [selectedDate, setSelectedDate] = useState("today"); // "today" | "ALL" | "YYYY-MM-DD"
   const [expandedReceipt, setExpandedReceipt] = useState(null);
   const [openHours, setOpenHours] = useState(() => new Set());
+  const [prodSort, setProdSort] = useState("qty"); // "qty" | "revenue" | "name"
 
   // Carica gli ordini da Firebase /torneo/orders (path di CassaPro)
   useEffect(() => {
@@ -4612,7 +4624,7 @@ function CassaView({ db }) {
     return t;
   }, [filteredOrders]);
 
-  // Top prodotti
+  // Tutti gli articoli venduti (nessun limite), ordinabili
   const topProducts = useMemo(() => {
     const map = {};
     filteredOrders.forEach(o => {
@@ -4627,8 +4639,18 @@ function CassaView({ db }) {
         map[key].revenue += qty * price;
       });
     });
-    return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 15);
-  }, [filteredOrders]);
+    const list = Object.values(map);
+    if (prodSort === "revenue") list.sort((a, b) => b.revenue - a.revenue || b.qty - a.qty);
+    else if (prodSort === "name") list.sort((a, b) => a.name.localeCompare(b.name, "it"));
+    else list.sort((a, b) => b.qty - a.qty || b.revenue - a.revenue);
+    return list;
+  }, [filteredOrders, prodSort]);
+
+  // Totale complessivo pezzi/incasso degli articoli
+  const productTotals = useMemo(() => topProducts.reduce(
+    (acc, p) => ({ qty: acc.qty + p.qty, revenue: acc.revenue + p.revenue }),
+    { qty: 0, revenue: 0 }
+  ), [topProducts]);
 
   // Vendite per ora (00-23)
   const hourlyData = useMemo(() => {
@@ -4807,7 +4829,7 @@ function CassaView({ db }) {
         + '<div class="kpis">' + kpiHTML + '</div>'
         + (hourlyData.length ? '<h2>Vendite per ora</h2><div class="chart">' + hourlyHTML + '</div>' : '')
         + (payBreakdown.length ? '<h2>Metodi di pagamento</h2><table><thead><tr><th>Metodo</th><th class="r">Scontrini</th><th class="r">Incasso</th><th class="r">%</th></tr></thead><tbody>' + payHTML + '</tbody></table>' : '')
-        + (topProducts.length ? '<h2>Top prodotti venduti</h2><table><thead><tr><th>#</th><th>Prodotto</th><th class="r">Qtà</th><th class="r">Ricavo</th></tr></thead><tbody>' + prodHTML + '</tbody></table>' : '')
+        + (topProducts.length ? '<h2>Articoli venduti (' + topProducts.length + ')</h2><table><thead><tr><th>#</th><th>Prodotto</th><th class="r">Qtà</th><th class="r">Ricavo</th></tr></thead><tbody>' + prodHTML + '<tr><td></td><td><b>TOTALE</b></td><td class="r"><b>' + productTotals.qty + '</b></td><td class="r"><b>' + eur(productTotals.revenue) + '</b></td></tr></tbody></table>' : '')
         + '<h2>Scontrini (' + filteredOrders.length + ')</h2><table><thead><tr><th>N.</th><th>Centro</th><th>Ora</th><th>Pag.</th><th>Articoli</th><th class="r">Totale</th></tr></thead><tbody>' + receiptsHTML + '</tbody></table>'
         + '<div class="foot">TdP Manager · Report cassa · ' + esc(scopeLabel) + '</div>'
         + '</body></html>';
@@ -4873,8 +4895,9 @@ function CassaView({ db }) {
       if (topProducts.length) {
         doc.autoTable({
           startY: doc.lastAutoTable.finalY + 6,
-          head: [["#", "Prodotto", "Qta", "Ricavo"]],
-          body: topProducts.map((p, i) => [String(i + 1), noEmoji(p.name) + (p.cat ? " (" + noEmoji(p.cat) + ")" : ""), String(p.qty), eur(p.revenue)]),
+          head: [["#", "Prodotto (" + topProducts.length + ")", "Qta", "Ricavo"]],
+          body: topProducts.map((p, i) => [String(i + 1), noEmoji(p.name) + (p.cat ? " (" + noEmoji(p.cat) + ")" : ""), String(p.qty), eur(p.revenue)])
+            .concat([["", "TOTALE", String(productTotals.qty), eur(productTotals.revenue)]]),
           theme: "grid", styles: { fontSize: 9, cellPadding: 2 },
           headStyles: { fillColor: [13, 40, 24], textColor: [232, 185, 72], fontStyle: "bold" },
           columnStyles: { 0: { cellWidth: 10 }, 2: { halign: "right" }, 3: { halign: "right" } },
@@ -4941,9 +4964,11 @@ function CassaView({ db }) {
       wsS["!cols"] = [{ wch: 6 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 60 }];
       XLSX.utils.book_append_sheet(wb, wsS, "Scontrini");
 
-      // Foglio 3 — Top prodotti
+      // Foglio 3 — Articoli venduti
       const prod = [["#", "Prodotto", "Categoria", "Quantità", "Ricavo (€)"]];
       topProducts.forEach((p, i) => prod.push([i + 1, p.name, p.cat || "", p.qty, +p.revenue.toFixed(2)]));
+      prod.push([]);
+      prod.push(["", "TOTALE", "", productTotals.qty, +productTotals.revenue.toFixed(2)]);
       const wsP = XLSX.utils.aoa_to_sheet(prod);
       wsP["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(wb, wsP, "Prodotti");
@@ -5084,16 +5109,28 @@ function CassaView({ db }) {
                 </div>
               </div>
 
-              {/* TOP PRODOTTI */}
+              {/* ARTICOLI VENDUTI — elenco completo */}
               <div className="cassa-section">
                 <div className="cassa-section-head">
-                  <span>Top prodotti venduti</span>
-                  <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, opacity:0.7}}>{topProducts.length} ARTICOLI</span>
+                  <span>Articoli venduti</span>
+                  <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, opacity:0.7}}>
+                    {topProducts.length} ARTICOLI · {productTotals.qty} PZ · {productTotals.revenue.toFixed(2).replace(".", ",")} €
+                  </span>
                 </div>
                 <div className="cassa-section-body">
+                  <div className="prod-sort-bar">
+                    <span className="prod-sort-label">Ordina per</span>
+                    {[["qty", "Quantità"], ["revenue", "Incasso"], ["name", "Nome A-Z"]].map(opt => (
+                      <button
+                        key={opt[0]}
+                        className={"prod-sort-btn" + (prodSort === opt[0] ? " active" : "")}
+                        onClick={() => setProdSort(opt[0])}
+                      >{opt[1]}</button>
+                    ))}
+                  </div>
                   <div className="top-products">
                     {topProducts.map((p, i) => (
-                      <div key={p.name} className={"top-product-row " + (i < 3 ? "top-" + (i + 1) : "")}>
+                      <div key={p.name} className={"top-product-row " + (prodSort !== "name" && i < 3 ? "top-" + (i + 1) : "")}>
                         <div className="rank">{i + 1}</div>
                         <div>
                           <div className="name">{p.name}</div>
@@ -5103,9 +5140,25 @@ function CassaView({ db }) {
                           <span className="qty">{p.qty}</span>
                           <span className="qty-unit"> pz</span>
                         </div>
-                        <div className="revenue">{p.revenue.toFixed(0)}€</div>
+                        <div className="revenue">{p.revenue.toFixed(2).replace(".", ",")}€</div>
                       </div>
                     ))}
+                    {topProducts.length > 0 && (
+                      <div className="top-product-row prod-total-row">
+                        <div className="rank">Σ</div>
+                        <div><div className="name">Totale complessivo</div></div>
+                        <div>
+                          <span className="qty">{productTotals.qty}</span>
+                          <span className="qty-unit"> pz</span>
+                        </div>
+                        <div className="revenue">{productTotals.revenue.toFixed(2).replace(".", ",")}€</div>
+                      </div>
+                    )}
+                    {topProducts.length === 0 && (
+                      <div style={{padding:"24px 20px", textAlign:"center", fontFamily:"'JetBrains Mono', monospace", fontSize:12, color:"var(--ink-soft)"}}>
+                        Nessun articolo venduto nel periodo selezionato
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
