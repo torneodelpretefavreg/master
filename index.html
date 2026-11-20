@@ -1290,6 +1290,8 @@ function App() {
   const [mansioni, setMansioni] = useFirebaseValue(fb.db, "mansioni", {});
   const [liberatorie, setLiberatorie] = useFirebaseValue(fb.db, "liberatorie", {});
   const [inventory, setInventory] = useFirebaseValue(fb.db, "inventory", []);
+  // Inventario Pro Loco: stessa struttura, dati separati
+  const [inventoryProLoco, setInventoryProLoco] = useFirebaseValue(fb.db, "inventoryProLoco", []);
   // Quote pagamenti (modificabili da Admin)
   const [quoteConfig, setQuoteConfig] = useFirebaseValue(fb.db, "quoteConfig", {
     quotaIscrizione: QUOTA_ISCRIZIONE_DEFAULT,
@@ -1453,6 +1455,14 @@ function App() {
             <p>Clicca sulla pillola "Pubblico" in alto a destra per autenticarti.</p>
           </div>
         )}
+        {view === "proloco" && canEdit && <InventoryView inventory={inventoryProLoco} setInventory={setInventoryProLoco} showToast={showToast} title="Inventario Pro Loco" />}
+        {view === "proloco" && !canEdit && (
+          <div className="empty">
+            <div className="empty-icon">🔒</div>
+            <h3>Accesso staff richiesto</h3>
+            <p>Clicca sulla pillola "Pubblico" in alto a destra per autenticarti.</p>
+          </div>
+        )}
         {view === "cassa" && canEdit && <CassaView db={fb.db} />}
         {view === "cassa" && !canEdit && (
           <div className="empty">
@@ -1510,6 +1520,7 @@ function Tabs({ view, onChange, canEdit }) {
     { id: "turni", label: "Turni", staffOnly: true },
     { id: "liberatorie", label: "Liberatorie", staffOnly: true },
     { id: "inventario", label: "Inventario", staffOnly: true },
+    { id: "proloco", label: "Pro Loco", staffOnly: true },
     { id: "admin", label: "Admin", staffOnly: true },
   ];
   return (
@@ -4026,7 +4037,7 @@ const emptyInventoryItem = () => ({
   remaining: 0,
 });
 
-function InventoryView({ inventory, setInventory, showToast }) {
+function InventoryView({ inventory, setInventory, showToast, title = "Inventario" }) {
   const [editing, setEditing] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -4074,7 +4085,7 @@ function InventoryView({ inventory, setInventory, showToast }) {
     <>
       <div className="section-head">
         <div>
-          <h1>Inventario</h1>
+          <h1>{title}</h1>
           <div className="subtitle">{totalItems} prodotti · {bere.length} bere · {mangiare.length} mangiare</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
